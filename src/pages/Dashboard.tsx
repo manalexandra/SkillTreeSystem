@@ -4,21 +4,21 @@ import { useAuth } from '../context/AuthContext';
 import { useSkillTreeStore } from '../stores/skillTreeStore';
 import SkillTreeView from '../components/skill-tree/SkillTreeView';
 import Navbar from '../components/layout/Navbar';
-import { Loader2, GitBranchPlus, TreeDeciduous } from 'lucide-react';
+import { GitBranchPlus, TreeDeciduous } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
-  const { user, loading: authLoading } = useAuth();
-  const { trees, fetchTrees, loading: treesLoading } = useSkillTreeStore();
+  const { user } = useAuth();
+  const { trees, fetchTrees } = useSkillTreeStore();
   const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   // Redirect if not authenticated
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!user) {
       navigate('/login');
     }
-  }, [authLoading, user, navigate]);
-
+  }, [user, navigate]);
+  
   // Fetch trees on mount
   useEffect(() => {
     if (user) {
@@ -32,18 +32,6 @@ const Dashboard: React.FC = () => {
       setSelectedTreeId(trees[0].id);
     }
   }, [trees, selectedTreeId]);
-
-  if (authLoading || treesLoading) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <div className="flex-grow flex items-center justify-center">
-          <Loader2 className="h-8 w-8 text-primary-500 animate-spin" />
-          <span className="ml-2 text-gray-600">Loading...</span>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">

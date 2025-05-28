@@ -24,12 +24,22 @@ export const signUp = async (email: string, password: string, role: 'manager' | 
 };
 
 export const signIn = async (email: string, password: string) => {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-  
-  return { data, error };
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => {
+      console.error('[supabase.ts] signInWithPassword timeout after 5s');
+      reject(new Error('signInWithPassword timeout'));
+    }, 5000)
+  );
+  try {
+    const result = await Promise.race([
+      supabase.auth.signInWithPassword({ email, password }),
+      timeout,
+    ]);
+    return result;
+  } catch (err) {
+    console.error('[supabase.ts] signInWithPassword error:', err);
+    throw err;
+  }
 };
 
 export const signOut = async () => {

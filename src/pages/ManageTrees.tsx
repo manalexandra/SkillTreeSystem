@@ -6,12 +6,12 @@ import Navbar from '../components/layout/Navbar';
 import SkillTreeView from '../components/skill-tree/SkillTreeView';
 import SkillNodeForm from '../components/skill-tree/SkillNodeForm';
 import CreateTreeForm from '../components/skill-tree/CreateTreeForm';
-import { Loader2, Plus, Edit, GitBranchPlus, TreeDeciduous } from 'lucide-react';
+import { Plus, Edit, GitBranchPlus, TreeDeciduous } from 'lucide-react';
 import type { SkillNode as SkillNodeType } from '../types';
 
 const ManageTrees: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
-  const { trees, fetchTrees, loading: treesLoading } = useSkillTreeStore();
+  const { trees, fetchTrees } = useSkillTreeStore();
   const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
   const [showCreateTree, setShowCreateTree] = useState(false);
   const [showNodeForm, setShowNodeForm] = useState(false);
@@ -47,18 +47,6 @@ const ManageTrees: React.FC = () => {
     setEditNode(node);
     setShowNodeForm(true);
   };
-
-  if (authLoading || treesLoading) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <div className="flex-grow flex items-center justify-center">
-          <Loader2 className="h-8 w-8 text-primary-500 animate-spin" />
-          <span className="ml-2 text-gray-600">Loading...</span>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">

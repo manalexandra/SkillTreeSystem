@@ -1,36 +1,52 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { supabase, getCurrentUser } from '../services/supabase';
+import { supabase } from '../services/supabase';
 import type { User } from '../types';
 
 interface AuthContextType {
   user: User | null;
-  loading: boolean;
   error: string | null;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
-  loading: true,
   error: null,
 });
 
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Try to restore user from sessionStorage
+  const storedUser = typeof window !== 'undefined' ? sessionStorage.getItem('user') : null;
+  const [user, setUser] = useState<User | null>(storedUser ? JSON.parse(storedUser) : null);
   const [error, setError] = useState<string | null>(null);
+
+  // Persist user to sessionStorage whenever it changes
+  useEffect(() => {
+    if (user) {
+      sessionStorage.setItem('user', JSON.stringify(user));
+    } else {
+      sessionStorage.removeItem('user');
+    }
+  }, [user]);
 
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const currentUser = await getCurrentUser();
-        setUser(currentUser);
+        // Use Supabase session directly
+        const { data } = await supabase.auth.getSession();
+        if (data?.session?.user) {
+          const user = {
+            id: data.session.user.id,
+            email: data.session.user.email || '',
+            role: (data.session.user.user_metadata?.role as 'manager' | 'user') || 'user',
+          };
+          setUser(user);
+        } else {
+          setUser(null);
+        }
       } catch (err) {
         setError('Failed to fetch user');
         console.error(err);
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -38,10 +54,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Set up auth state listener
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event) => {
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          const currentUser = await getCurrentUser();
-          setUser(currentUser);
+      async (event, session) => {
+        if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
+          const user = {
+            id: session.user.id,
+            email: session.user.email || '',
+            role: (session.user.user_metadata?.role as 'manager' | 'user') || 'user',
+          };
+          setUser(user);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
         }
@@ -54,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, error }}>
+    <AuthContext.Provider value={{ user, error }}>
       {children}
     </AuthContext.Provider>
   );
