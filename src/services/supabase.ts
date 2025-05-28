@@ -3,8 +3,8 @@ import type { User, SkillTree, SkillNode, UserProgress } from '../types';
 
 // Initialize Supabase client
 // Replace these with your actual Supabase URL and anon key
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabaseUrl = "https://jdipoqxnmhfyiqycglnt.supabase.co";
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpkaXBvcXhubWhmeWlxeWNnbG50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgzNzc0MjEsImV4cCI6MjA2Mzk1MzQyMX0.HdDT9aT_FEmsYhZsluLtCn-Cm4qLOJEWm2t1KgZQy2M";
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -165,12 +165,12 @@ export const getSkillNodes = async (treeId: string): Promise<SkillNode[]> => {
 export const updateSkillNode = async (
   node: Partial<SkillNode> & { id: string }
 ): Promise<SkillNode | null> => {
-  const updateData: Record<string, any> = {};
+  const updateData: Partial<SkillNode> = {};
   
   if (node.title) updateData.title = node.title;
   if (node.description) updateData.description = node.description;
-  if (node.parentId !== undefined) updateData.parent_id = node.parentId;
-  if (node.orderIndex !== undefined) updateData.order_index = node.orderIndex;
+  if (node.parentId !== undefined) updateData.parentId = node.parentId;
+  if (node.orderIndex !== undefined) updateData.orderIndex = node.orderIndex;
   
   const { data, error } = await supabase
     .from('skill_nodes')
@@ -245,25 +245,35 @@ export const updateUserProgress = async (
 };
 
 export const getUserProgress = async (userId: string, treeId: string): Promise<Record<string, boolean>> => {
+  // Step 1: Get the node IDs for the tree
+  const { data: nodeData, error: nodeError } = await supabase
+    .from('skill_nodes')
+    .select('id')
+    .eq('tree_id', treeId);
+
+  if (nodeError) {
+    console.error('Error fetching skill nodes:', nodeError);
+    return {};
+  }
+
+  const nodeIds = nodeData?.map((node) => node.id) || [];
+
+  // Step 2: Get the user progress for those node IDs
   const { data, error } = await supabase
     .from('user_node_progress')
     .select('node_id, completed')
     .eq('user_id', userId)
-    .in('node_id', supabase
-      .from('skill_nodes')
-      .select('id')
-      .eq('tree_id', treeId)
-    );
-  
+    .in('node_id', nodeIds);
+
   if (error) {
     console.error('Error fetching user progress:', error);
     return {};
   }
-  
+
   const progressMap: Record<string, boolean> = {};
   data.forEach((item) => {
     progressMap[item.node_id] = item.completed;
   });
-  
+
   return progressMap;
 };

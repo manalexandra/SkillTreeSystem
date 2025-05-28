@@ -9,7 +9,7 @@ import {
   deleteSkillNode,
   updateUserProgress
 } from '../services/supabase';
-import type { SkillTree, SkillNode, UserProgress } from '../types';
+import type { SkillTree, SkillNode } from '../types';
 
 interface SkillTreeState {
   trees: SkillTree[];
