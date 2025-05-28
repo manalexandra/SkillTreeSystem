@@ -1,16 +1,41 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSkillTreeStore } from '../stores/skillTreeStore';
 import SkillTreeView from '../components/skill-tree/SkillTreeView';
 import Navbar from '../components/layout/Navbar';
 import { GitBranchPlus, TreeDeciduous } from 'lucide-react';
 
+import { fetchUserCount, fetchSkillTreeCount } from '../services/dashboardService';
+
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const { trees, fetchTrees } = useSkillTreeStore();
+  const { trees, fetchTrees, nodes } = useSkillTreeStore();
   const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  // Dashboard metrics state
+  const [userCount, setUserCount] = useState<number | null>(null);
+  const [treeCount, setTreeCount] = useState<number | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(true);
+
+  // Fetch dashboard metrics
+  useEffect(() => {
+    let mounted = true;
+    setMetricsLoading(true);
+    Promise.all([fetchUserCount(), fetchSkillTreeCount()])
+      .then(([users, trees]) => {
+        if (mounted) {
+          setUserCount(users);
+          setTreeCount(trees);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (mounted) setMetricsLoading(false);
+      });
+    return () => { mounted = false; };
+  }, []);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -36,7 +61,29 @@ const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Navbar />
-      
+      {/* Dashboard Metrics */}
+      <div className="container mx-auto px-4 pt-8 pb-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+          <div className="bg-white rounded-lg shadow p-6 flex items-center justify-between">
+            <div>
+              <div className="text-gray-500 text-sm">Total Users</div>
+              <div className="text-2xl font-bold text-gray-900">
+                {metricsLoading ? <span className="text-gray-400">Loading...</span> : userCount}
+              </div>
+            </div>
+            <svg className="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87M16 3.13a4 4 0 110 7.75M8 3.13a4 4 0 100 7.75" /></svg>
+          </div>
+          <div className="bg-white rounded-lg shadow p-6 flex items-center justify-between">
+            <div>
+              <div className="text-gray-500 text-sm">Total Skill Trees</div>
+              <div className="text-2xl font-bold text-gray-900">
+                {metricsLoading ? <span className="text-gray-400">Loading...</span> : treeCount}
+              </div>
+            </div>
+            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 2C9.243 2 7 4.243 7 7c0 2.757 2.243 5 5 5s5-2.243 5-5c0-2.757-2.243-5-5-5zm0 14c-4.418 0-8 1.79-8 4v2h16v-2c0-2.21-3.582-4-8-4z" /></svg>
+          </div>
+        </div>
+      </div>
       <div className="flex-grow container mx-auto px-4 py-6">
         <div className="bg-white rounded-lg shadow">
           <div className="flex flex-col lg:flex-row lg:min-h-[600px]">
@@ -56,22 +103,31 @@ const Dashboard: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {trees.map((tree) => (
-                    <button
-                      key={tree.id}
-                      onClick={() => setSelectedTreeId(tree.id)}
-                      className={`w-full text-left px-4 py-3 rounded-md transition-all duration-200 ${
-                        selectedTreeId === tree.id
-                          ? 'bg-primary-50 text-primary-700 border-l-4 border-primary-500'
-                          : 'text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-center">
-                        <GitBranchPlus className="h-4 w-4 mr-2 flex-shrink-0" />
-                        <span className="truncate">{tree.name}</span>
-                      </div>
-                    </button>
-                  ))}
+                  {trees.map((tree) => {
+  // Find the root node for the tree
+  const rootNode = nodes.find(
+    (n) => n.treeId === tree.id && n.parentId === null
+  );
+  const rootNodeId = rootNode ? rootNode.id : tree.id;
+  return (
+    <button
+      key={tree.id}
+      onClick={() => setSelectedTreeId(tree.id)}
+      className={`w-full text-left px-4 py-3 rounded-md transition-all duration-200 ${
+        selectedTreeId === tree.id
+          ? 'bg-primary-50 text-primary-700 border-l-4 border-primary-500'
+          : 'text-gray-700 hover:bg-gray-50'
+      }`}
+    >
+      <div className="flex items-center">
+        <GitBranchPlus className="h-4 w-4 mr-2 flex-shrink-0" />
+        <Link to={`/node/${rootNodeId}`} className="truncate text-primary-700 hover:underline">
+          {tree.name}
+        </Link>
+      </div>
+    </button>
+  );
+})}
                 </div>
               )}
             </div>

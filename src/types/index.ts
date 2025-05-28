@@ -11,6 +11,7 @@ export interface SkillTree {
   name: string;
   createdBy: string;
   createdAt: string;
+  assignedUserId?: string; // User to whom this tree is assigned
 }
 
 export interface SkillNode {

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import type { SkillNode as SkillNodeType } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { Check, AlertCircle, ChevronRight } from 'lucide-react';
@@ -26,11 +27,6 @@ const SkillNode: React.FC<SkillNodeProps> = ({
   // A node is completable if all its prerequisites (parent and siblings) are completed
   const isCompletable = true; // Simplified for MVP - in a real app, we'd check parent completion
   
-  const handleToggleComplete = () => {
-    if (!isEditable && isCompletable) {
-      onToggleComplete(node.id, !isCompleted);
-    }
-  };
   
   const handleEdit = () => {
     if (isEditable && onEdit) {
@@ -80,13 +76,17 @@ const SkillNode: React.FC<SkillNodeProps> = ({
             : 'bg-white border-gray-200 hover:bg-gray-50 cursor-pointer'
         }`}
         style={indentStyle}
-        onClick={isEditable ? handleEdit : handleToggleComplete}
+        onClick={isEditable ? handleEdit : undefined}
       >
         {renderNodeStatus()}
         
         <div className="flex items-start">
           <div className="flex-grow">
-            <h3 className="font-medium text-gray-800">{node.title}</h3>
+            <h3 className="font-medium text-gray-800">
+  <Link to={`/node/${node.id}`} className="hover:underline text-primary-600">
+    {node.title}
+  </Link>
+</h3>
             
             {node.description && (
               <p className="mt-1 text-sm text-gray-600">{node.description}</p>

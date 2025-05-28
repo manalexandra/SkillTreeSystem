@@ -6,6 +6,9 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import ManageTrees from './pages/ManageTrees';
+import NodeDetail from './pages/NodeDetail';
+import RoadmapView from "./pages/RoadmapView";
+import AdminPanel from "./pages/AdminPanel";
 
 function App() {
   return (
@@ -17,7 +20,10 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/manage" element={<ManageTrees />} />
-          <Route path="*" element={<Navigate to="/\" replace />} />
+          <Route path="/node/:nodeId" element={<NodeDetail />} />
+        <Route path="/roadmap" element={<RoadmapView />} />
+        <Route path="/admin" element={<AdminPanel />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
    </AuthProvider>

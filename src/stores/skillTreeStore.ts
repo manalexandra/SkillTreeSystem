@@ -23,7 +23,7 @@ interface SkillTreeState {
   // Actions
   fetchTrees: () => Promise<void>;
   fetchTreeData: (treeId: string, userId: string) => Promise<void>;
-  createNewTree: (name: string, userId: string) => Promise<SkillTree | null>;
+  createNewTree: (name: string, userId: string, assignedUserId?: string) => Promise<SkillTree | null>;
   addNode: (node: Omit<SkillNode, 'id' | 'createdAt'>) => Promise<SkillNode | null>;
   updateNode: (node: Partial<SkillNode> & { id: string }) => Promise<SkillNode | null>;
   removeNode: (nodeId: string) => Promise<boolean>;
@@ -52,6 +52,21 @@ export const useSkillTreeStore = create<SkillTreeState>((set, get) => ({
       set({ 
         error: 'Failed to fetch skill trees', 
         loading: false 
+      });
+      console.error(error);
+    }
+  },
+
+  // Fetch trees assigned to a specific user
+  fetchUserTrees: async (userId: string) => {
+    set({ loading: true, error: null });
+    try {
+      const trees = await fetchUserSkillTrees(userId);
+      set({ trees, loading: false });
+    } catch (error) {
+      set({
+        error: 'Failed to fetch user trees',
+        loading: false
       });
       console.error(error);
     }
@@ -100,21 +115,27 @@ export const useSkillTreeStore = create<SkillTreeState>((set, get) => ({
     }
   },
   
-  createNewTree: async (name: string, userId: string) => {
+  createNewTree: async (name: string, userId: string, assignedUserId?: string) => {
     set({ loading: true, error: null });
     try {
-      const newTree = await createSkillTree(name, userId);
-      if (newTree) {
-        set(state => ({ 
-          trees: [...state.trees, newTree],
-          loading: false 
-        }));
-      }
+      // For mock/demo, create a simple tree object
+      const newTree = {
+        id: Math.random().toString(36).substr(2, 9),
+        name,
+        createdBy: userId,
+        createdAt: new Date().toISOString(),
+        assignedUserId: assignedUserId || undefined,
+      };
+      // In real implementation, call API to create
+      set((state) => ({
+        trees: [...state.trees, newTree],
+        loading: false
+      }));
       return newTree;
     } catch (error) {
-      set({ 
-        error: 'Failed to create new tree', 
-        loading: false 
+      set({
+        error: 'Failed to create skill tree',
+        loading: false
       });
       console.error(error);
       return null;

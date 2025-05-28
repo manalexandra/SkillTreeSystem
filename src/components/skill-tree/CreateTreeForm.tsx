@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSkillTreeStore } from '../../stores/skillTreeStore';
 import { useAuth } from '../../context/AuthContext';
+import { fetchAllUsers } from '../../services/userService';
 import { X } from 'lucide-react';
+import type { User } from '../../types';
 
 interface CreateTreeFormProps {
   onClose: () => void;
@@ -10,20 +12,26 @@ interface CreateTreeFormProps {
 
 const CreateTreeForm: React.FC<CreateTreeFormProps> = ({ onClose, onSuccess }) => {
   const [name, setName] = useState('');
+  const [assignedUserId, setAssignedUserId] = useState<string>('');
+  const [users, setUsers] = useState<User[]>([]);
   const { createNewTree, loading } = useSkillTreeStore();
   const { user } = useAuth();
 
+  useEffect(() => {
+    const loadUsers = async () => {
+      const data = await fetchAllUsers();
+      setUsers(data);
+    };
+    loadUsers();
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!user) return;
-    
-    const newTree = await createNewTree(name, user.id);
-    
+    const newTree = await createNewTree(name, user.id, assignedUserId || undefined);
     if (newTree && onSuccess) {
       onSuccess(newTree.id);
     }
-    
     onClose();
   };
 
@@ -56,6 +64,24 @@ const CreateTreeForm: React.FC<CreateTreeFormProps> = ({ onClose, onSuccess }) =
             />
           </div>
           
+          <div className="mb-4">
+            <label htmlFor="assignedUser" className="block text-sm font-medium text-gray-700 mb-1">
+              Assign to User
+            </label>
+            <select
+              id="assignedUser"
+              value={assignedUserId}
+              onChange={e => setAssignedUserId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              required
+            >
+              <option value="">Select user...</option>
+              {users.map(u => (
+                <option key={u.id} value={u.id}>{u.email} ({u.role})</option>
+              ))}
+            </select>
+          </div>
+
           <div className="flex justify-end space-x-3 mt-6">
             <button
               type="button"

@@ -52,13 +52,27 @@ const Navbar: React.FC = () => {
                   >
                     Dashboard
                   </Link>
+                  <Link
+                    to="/roadmap"
+                    className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  >
+                    Roadmap
+                  </Link>
                   {user.role === 'manager' && (
-                    <Link
-                      to="/manage"
-                      className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                    >
-                      Manage Trees
-                    </Link>
+                    <>
+                      <Link
+                        to="/manage"
+                        className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                      >
+                        Manage Trees
+                      </Link>
+                      <Link
+                        to="/admin"
+                        className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                      >
+                        Admin
+                      </Link>
+                    </>
                   )}
                 </>
               )}
