@@ -9,9 +9,15 @@ export interface User {
 export interface SkillTree {
   id: string;
   name: string;
+  description?: string;
   createdBy: string;
   createdAt: string;
-  assignedUserId?: string; // User to whom this tree is assigned
+}
+
+export interface SkillTreeAssignment {
+  treeId: string;
+  userId: string;
+  assignedAt: string;
 }
 
 export interface SkillNode {

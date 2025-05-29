@@ -12,7 +12,8 @@ interface CreateTreeFormProps {
 
 const CreateTreeForm: React.FC<CreateTreeFormProps> = ({ onClose, onSuccess }) => {
   const [name, setName] = useState('');
-  const [assignedUserId, setAssignedUserId] = useState<string>('');
+  const [description, setDescription] = useState('');
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const { createNewTree, loading } = useSkillTreeStore();
   const { user } = useAuth();
@@ -28,7 +29,14 @@ const CreateTreeForm: React.FC<CreateTreeFormProps> = ({ onClose, onSuccess }) =
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    const newTree = await createNewTree(name, user.id, assignedUserId || undefined);
+    
+    const newTree = await createNewTree({
+      name,
+      description,
+      createdBy: user.id,
+      assignedUsers: selectedUsers
+    });
+    
     if (newTree && onSuccess) {
       onSuccess(newTree.id);
     }
@@ -65,21 +73,47 @@ const CreateTreeForm: React.FC<CreateTreeFormProps> = ({ onClose, onSuccess }) =
           </div>
           
           <div className="mb-4">
-            <label htmlFor="assignedUser" className="block text-sm font-medium text-gray-700 mb-1">
-              Assign to User
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+              Description
             </label>
-            <select
-              id="assignedUser"
-              value={assignedUserId}
-              onChange={e => setAssignedUserId(e.target.value)}
+            <textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-              required
-            >
-              <option value="">Select user...</option>
+              rows={3}
+              placeholder="Describe the purpose and goals of this skill tree"
+            />
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Assign to Users
+            </label>
+            <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md">
               {users.map(u => (
-                <option key={u.id} value={u.id}>{u.email} ({u.role})</option>
+                <label
+                  key={u.id}
+                  className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedUsers.includes(u.id)}
+                    onChange={(e) => {
+                      setSelectedUsers(prev =>
+                        e.target.checked
+                          ? [...prev, u.id]
+                          : prev.filter(id => id !== u.id)
+                      );
+                    }}
+                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">
+                    {u.email} ({u.role})
+                  </span>
+                </label>
               ))}
-            </select>
+            </div>
           </div>
 
           <div className="flex justify-end space-x-3 mt-6">

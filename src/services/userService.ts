@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { User, UserRole } from '../types';
+import type { User, UserRole, SkillTree } from '../types';
 
 // Fetch current user from session
 export const getCurrentSessionUser = async (): Promise<User | null> => {
@@ -14,74 +14,126 @@ export const getCurrentSessionUser = async (): Promise<User | null> => {
   return null;
 };
 
-// For the Admin Panel demo, we'll use a mock approach since we don't have admin privileges
-// In a real app, you would use Supabase admin functions or a backend server
-
-
-import type { SkillTree } from '../types';
-
-// Fetch all users from Supabase (real implementation)
+// Fetch all users from Supabase
 export const fetchAllUsers = async (): Promise<User[]> => {
-  // You must have a 'users' table in your Supabase DB for this to work
-  const { data, error } = await supabase.from('users').select('id, email, role');
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, email, role')
+    .order('email');
+    
   if (error) {
-    throw new Error(error.message);
+    console.error('Error fetching users:', error);
+    return [];
   }
+  
   return data as User[];
 };
 
-// Fetch all skill trees from Supabaseexport const fetchAllSkillTrees = async (): Promise<SkillTree[]> => {
-  const { data, error } = await supabase.from('skill_trees').select('*');
+// Fetch all skill trees from Supabase
+export const fetchAllSkillTrees = async (): Promise<SkillTree[]> => {
+  const { data, error } = await supabase
+    .from('skill_trees')
+    .select('*')
+    .order('created_at', { ascending: false });
+    
   if (error) {
-    throw new Error(error.message);
+    console.error('Error fetching skill trees:', error);
+    return [];
   }
+  
   return data as SkillTree[];
 };
 
-// Fetch skill trees assigned to a specific user from Supabase
+// Fetch skill trees assigned to a specific user
 export const fetchUserSkillTrees = async (userId: string): Promise<SkillTree[]> => {
-  const { data, error } = await supabase.from('skill_trees').select('*').eq('assignedUserId', userId);
+  const { data, error } = await supabase
+    .from('skill_tree_assignments')
+    .select(`
+      tree_id,
+      skill_trees (
+        id,
+        name,
+        description,
+        created_by,
+        created_at
+      )
+    `)
+    .eq('user_id', userId);
+    
   if (error) {
-    throw new Error(error.message);
+    console.error('Error fetching user skill trees:', error);
+    return [];
   }
-  return data as SkillTree[];
+  
+  return data.map(assignment => assignment.skill_trees) as SkillTree[];
 };
 
-// Assign a tree to a user in Supabase
-export const assignTreeToUser = async (treeId: string, userId: string): Promise<void> => {
-  const { error } = await supabase.from('skill_trees').update({ assignedUserId: userId }).eq('id', treeId);
+// Assign a tree to multiple users
+export const assignTreeToUsers = async (treeId: string, userIds: string[]): Promise<void> => {
+  const assignments = userIds.map(userId => ({
+    tree_id: treeId,
+    user_id: userId
+  }));
+  
+  const { error } = await supabase
+    .from('skill_tree_assignments')
+    .upsert(assignments);
+    
   if (error) {
-    throw new Error(error.message);
+    console.error('Error assigning tree to users:', error);
+    throw error;
   }
 };
 
-// Update user role in Supabase
+// Update user role
 export const updateUserRole = async (userId: string, role: UserRole): Promise<void> => {
-  const { error } = await supabase.from('users').update({ role }).eq('id', userId);
+  const { error } = await supabase
+    .from('users')
+    .update({ role })
+    .eq('id', userId);
+    
   if (error) {
-    throw new Error(error.message);
+    console.error('Error updating user role:', error);
+    throw error;
   }
 };
 
-// Delete user from Supabase
+// Delete user
 export const deleteUser = async (userId: string): Promise<void> => {
-  const { error } = await supabase.from('users').delete().eq('id', userId);
+  const { error } = await supabase.auth.admin.deleteUser(userId);
   if (error) {
-    throw new Error(error.message);
+    console.error('Error deleting user:', error);
+    throw error;
   }
 };
 
-// Add new user to Supabase
+// Add new user
 export const addUser = async (email: string, password: string, role: UserRole): Promise<void> => {
-  // This requires Supabase admin privileges or an API route
-  // Example: use Supabase Auth API to sign up user, then update role in 'users' table
-  const { data, error } = await supabase.auth.signUp({ email, password });
-  if (error) {
-    throw new Error(error.message);
+  const { data, error: signUpError } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { role }
+    }
+  });
+  
+  if (signUpError) {
+    console.error('Error creating user:', signUpError);
+    throw signUpError;
   }
-  // Optionally, add to 'users' table with role
+  
   if (data.user) {
-    await supabase.from('users').insert({ id: data.user.id, email, role });
+    const { error: userError } = await supabase
+      .from('users')
+      .insert({
+        id: data.user.id,
+        email,
+        role
+      });
+      
+    if (userError) {
+      console.error('Error adding user to users table:', userError);
+      throw userError;
+    }
   }
 };
-
