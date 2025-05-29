@@ -150,6 +150,28 @@ export const createSkillNode = async (
   };
 };
 
+export const getAllSkillNodes = async (): Promise<SkillNode[]> => {
+  const { data, error } = await supabase
+    .from('skill_nodes')
+    .select('*')
+    .order('order_index', { ascending: true });
+  
+  if (error) {
+    console.error('Error fetching all skill nodes:', error);
+    return [];
+  }
+  
+  return data.map((node) => ({
+    id: node.id,
+    treeId: node.tree_id,
+    parentId: node.parent_id,
+    title: node.title,
+    description: node.description,
+    orderIndex: node.order_index,
+    createdAt: node.created_at,
+  }));
+};
+
 export const getSkillNodes = async (treeId: string): Promise<SkillNode[]> => {
   const { data, error } = await supabase
     .from('skill_nodes')
@@ -252,6 +274,25 @@ export const updateUserProgress = async (
     completed: data.completed,
     completedAt: data.completed_at,
   };
+};
+
+export const getAllUserProgress = async (userId: string): Promise<Record<string, boolean>> => {
+  const { data, error } = await supabase
+    .from('user_node_progress')
+    .select('node_id, completed')
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error fetching all user progress:', error);
+    return {};
+  }
+
+  const progressMap: Record<string, boolean> = {};
+  data.forEach((item) => {
+    progressMap[item.node_id] = item.completed;
+  });
+
+  return progressMap;
 };
 
 export const getUserProgress = async (userId: string, treeId: string): Promise<Record<string, boolean>> => {

@@ -4,6 +4,8 @@ import { useSkillTreeStore } from '../stores/skillTreeStore';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronRight, GitBranchPlus, CheckCircle, Circle, Award, Map } from 'lucide-react';
+import { getAllSkillNodes, getAllUserProgress } from '../services/supabase';
+import type { SkillNode } from '../types';
 
 interface TreeNode {
   id: string;
@@ -17,11 +19,13 @@ interface TreeNode {
 }
 
 const RoadmapView: React.FC = () => {
-  const { trees, nodes, completedNodesByUser } = useSkillTreeStore();
+  const { trees } = useSkillTreeStore();
   const { user } = useAuth();
   const [expandedTreeIds, setExpandedTreeIds] = useState<string[]>([]);
   const [activeTreeId, setActiveTreeId] = useState<string | null>(null);
   const [animateIn, setAnimateIn] = useState(false);
+  const [allNodes, setAllNodes] = useState<SkillNode[]>([]);
+  const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
   
   // Sort trees by createdAt (oldest to newest)
   const sortedTrees = [...trees].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
@@ -39,24 +43,36 @@ const RoadmapView: React.FC = () => {
     }, 100);
   }, [sortedTrees]);
 
+  // Fetch all nodes and user progress
+  useEffect(() => {
+    const fetchData = async () => {
+      const nodes = await getAllSkillNodes();
+      setAllNodes(nodes);
+
+      if (user) {
+        const progress = await getAllUserProgress(user.id);
+        setUserProgress(progress);
+      }
+    };
+
+    fetchData();
+  }, [user]);
+
   const handleToggleTree = (treeId: string) => {
     setExpandedTreeIds((ids) =>
       ids.includes(treeId) ? ids.filter((id) => id !== treeId) : [...ids, treeId]
     );
     setActiveTreeId(treeId);
   };
-
-  // Get user's completed nodes
-  const userCompletedNodes = user ? completedNodesByUser[user.id] || {} : {};
   
   // Helper to check if a node is completed
   const isNodeCompleted = (nodeId: string): boolean => {
-    return Boolean(user && userCompletedNodes[nodeId]);
+    return Boolean(user && userProgress[nodeId]);
   };
 
   // Helper to build a tree structure from flat nodes with completion info
   const buildNodeTree = (treeId: string, parentId: string | null = null): TreeNode[] => {
-    return nodes
+    return allNodes
       .filter((n) => n.treeId === treeId && n.parentId === parentId)
       .sort((a, b) => a.orderIndex - b.orderIndex)
       .map((node) => ({
@@ -68,7 +84,7 @@ const RoadmapView: React.FC = () => {
 
   // Calculate progress for a tree
   const calculateTreeProgress = (treeId: string): { completed: number; total: number } => {
-    const treeNodes = nodes.filter(node => node.treeId === treeId);
+    const treeNodes = allNodes.filter(node => node.treeId === treeId);
     const total = treeNodes.length;
     const completed = treeNodes.filter(node => isNodeCompleted(node.id)).length;
     return { completed, total };
