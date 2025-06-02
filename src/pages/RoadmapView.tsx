@@ -3,7 +3,7 @@ import Navbar from '../components/layout/Navbar';
 import { useSkillTreeStore } from '../stores/skillTreeStore';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
-import { ChevronDown, ChevronRight, GitBranchPlus, CheckCircle, Circle, Award, Map } from 'lucide-react';
+import { ChevronDown, ChevronRight, GitBranchPlus, CheckCircle, Circle, Award, Map, Loader2 } from 'lucide-react';
 import { getAllSkillNodes, getAllUserProgress } from '../services/supabase';
 import type { SkillNode } from '../types';
 
@@ -26,9 +26,12 @@ const RoadmapView: React.FC = () => {
   const [animateIn, setAnimateIn] = useState(false);
   const [allNodes, setAllNodes] = useState<SkillNode[]>([]);
   const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState(true);
   
   // Sort trees by createdAt (oldest to newest)
-  const sortedTrees = [...trees].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  const sortedTrees = [...trees].sort((a, b) => 
+    new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
   
   useEffect(() => {
     // Auto-expand the first tree when page loads
@@ -46,12 +49,19 @@ const RoadmapView: React.FC = () => {
   // Fetch all nodes and user progress
   useEffect(() => {
     const fetchData = async () => {
-      const nodes = await getAllSkillNodes();
-      setAllNodes(nodes);
+      setLoading(true);
+      try {
+        const nodes = await getAllSkillNodes();
+        setAllNodes(nodes);
 
-      if (user) {
-        const progress = await getAllUserProgress(user.id);
-        setUserProgress(progress);
+        if (user) {
+          const progress = await getAllUserProgress(user.id);
+          setUserProgress(progress);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -90,6 +100,20 @@ const RoadmapView: React.FC = () => {
     return { completed, total };
   };
 
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 text-primary-600 animate-spin mx-auto mb-4" />
+            <p className="text-gray-600">Loading your learning journey...</p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   // Recursive render for nodes with a more visually appealing style
   const renderNode = (node: TreeNode, isLast = false, pathIndex = 0) => {
     const hasChildren = node.children && node.children.length > 0;
@@ -103,9 +127,15 @@ const RoadmapView: React.FC = () => {
           </div>
         </div>
         
-        <div className={`flex items-center mb-4 relative z-10 transition-all duration-300 transform ${animateIn ? 'translate-x-0 opacity-100' : 'translate-x-[-20px] opacity-0'}`} 
-             style={{ transitionDelay: `${pathIndex * 100}ms` }}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${completionStatus === 'completed' ? 'bg-green-100 text-green-600' : 'bg-primary-100 text-primary-600'} mr-3`}>
+        <div 
+          className={`flex items-center mb-4 relative z-10 transition-all duration-300 transform ${
+            animateIn ? 'translate-x-0 opacity-100' : 'translate-x-[-20px] opacity-0'
+          }`} 
+          style={{ transitionDelay: `${pathIndex * 100}ms` }}
+        >
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+            completionStatus === 'completed' ? 'bg-green-100 text-green-600' : 'bg-primary-100 text-primary-600'
+          } mr-3`}>
             {completionStatus === 'completed' ? 
               <CheckCircle className="h-5 w-5" /> : 
               <Circle className="h-5 w-5" />}
@@ -113,17 +143,25 @@ const RoadmapView: React.FC = () => {
           
           <Link
             to={`/node/${node.id}`}
-            className={`px-4 py-2 rounded-lg ${completionStatus === 'completed' ? 'bg-green-50 hover:bg-green-100' : 'bg-white hover:bg-gray-50'} shadow hover:shadow-md transition-all duration-200 flex-grow flex items-center`}
+            className={`px-4 py-3 rounded-lg ${
+              completionStatus === 'completed' 
+                ? 'bg-green-50 hover:bg-green-100' 
+                : 'bg-white hover:bg-gray-50'
+            } shadow-sm hover:shadow transition-all duration-200 flex-grow flex items-center group`}
           >
-            <div>
-              <h3 className="font-medium text-gray-900">{node.title}</h3>
+            <div className="flex-grow">
+              <h3 className="font-medium text-gray-900 group-hover:text-primary-600 transition-colors">
+                {node.title}
+              </h3>
               {node.description && (
-                <p className="text-sm text-gray-500 line-clamp-1">{node.description}</p>
+                <p className="text-sm text-gray-500 line-clamp-1 mt-1">
+                  {node.description}
+                </p>
               )}
             </div>
             {hasChildren && (
               <div className="ml-auto">
-                <ChevronRight className="h-4 w-4 text-gray-400" />
+                <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-primary-500 transition-colors" />
               </div>
             )}
           </Link>
@@ -148,49 +186,62 @@ const RoadmapView: React.FC = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
               <div className="flex justify-center mb-4">
-                <Map className="h-10 w-10 text-primary-600" />
+                <div className="p-3 bg-white rounded-full shadow-md">
+                  <Map className="h-10 w-10 text-primary-600" />
+                </div>
               </div>
               <h1 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
-                Your Learning Roadmap
+                Your Learning Journey
               </h1>
               <p className="mt-4 text-xl text-gray-500">
-                Visualize your skill progression journey from start to finish
+                Track your progress and visualize your skill development path
               </p>
             </div>
             
             {/* Timeline header with trees and connecting lines */}
             <div className="relative overflow-x-auto pb-16 mb-8 scrollbar-thin scrollbar-thumb-primary-200 scrollbar-track-gray-100">
               {/* Horizontal line connecting all trees */}
-              <div className="absolute top-20 left-0 right-0 h-1 bg-primary-200 z-0"></div>
+              <div className="absolute top-20 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-300 to-primary-200 z-0"></div>
               
               <div className="relative flex px-8 pt-4 pb-4">
                 {sortedTrees.map((tree, index) => {
                   const isActive = activeTreeId === tree.id;
                   const isExpanded = expandedTreeIds.includes(tree.id);
                   const progress = calculateTreeProgress(tree.id);
-                  const progressPercent = progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
-                  const isFirstTree = index === 0;
-                  const isLastTree = index === sortedTrees.length - 1;
+                  const progressPercent = progress.total > 0 
+                    ? Math.round((progress.completed / progress.total) * 100) 
+                    : 0;
                   
                   return (
                     <div key={tree.id} className="relative flex flex-col items-center mr-20 last:mr-0">
                       {/* Tree node */}
                       <button
                         onClick={() => handleToggleTree(tree.id)}
-                        className={`relative z-10 flex-shrink-0 rounded-lg px-5 py-3 ${isActive ? 'bg-primary-50 border-2 border-primary-500' : 'bg-white border border-gray-200'} transition-all duration-200 flex flex-col items-center shadow-sm hover:shadow w-60`}
+                        className={`relative z-10 flex-shrink-0 rounded-xl px-5 py-4 ${
+                          isActive 
+                            ? 'bg-white border-2 border-primary-500 shadow-lg' 
+                            : 'bg-white border border-gray-200 shadow-md hover:shadow-lg'
+                        } transition-all duration-200 flex flex-col items-center w-64`}
                       >
-                        <div className="flex items-center mb-2">
+                        <div className="flex items-center mb-3">
                           <GitBranchPlus className={`h-5 w-5 ${isActive ? 'text-primary-600' : 'text-gray-500'} mr-2`} />
-                          <span className={`font-medium ${isActive ? 'text-primary-700' : 'text-gray-700'}`}>{tree.name}</span>
-                          {isExpanded ? <ChevronDown className="ml-2 h-4 w-4 text-gray-400" /> : <ChevronRight className="ml-2 h-4 w-4 text-gray-400" />}
+                          <span className={`font-medium ${isActive ? 'text-primary-700' : 'text-gray-700'}`}>
+                            {tree.name}
+                          </span>
+                          {isExpanded 
+                            ? <ChevronDown className="ml-2 h-4 w-4 text-gray-400" /> 
+                            : <ChevronRight className="ml-2 h-4 w-4 text-gray-400" />}
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5 mb-1">
+                        
+                        <div className="w-full bg-gray-100 rounded-full h-2.5 mb-2">
                           <div 
                             className="bg-primary-600 h-2.5 rounded-full transition-all duration-500" 
                             style={{ width: `${progressPercent}%` }}
                           ></div>
                         </div>
-                        <div className="text-xs text-gray-500">
+                        
+                        <div className="flex items-center text-xs text-gray-500">
+                          <Award className="h-4 w-4 mr-1 text-primary-500" />
                           {progress.completed}/{progress.total} completed
                         </div>
                       </button>
@@ -199,15 +250,15 @@ const RoadmapView: React.FC = () => {
                       <div className="absolute top-16 h-4 w-1 bg-primary-200"></div>
                       
                       {/* Tree sequence number */}
-                      <div className="absolute -bottom-10 bg-primary-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold">
+                      <div className="absolute -bottom-10 bg-gradient-to-br from-primary-500 to-primary-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold shadow-md">
                         {index + 1}
                       </div>
                       
                       {/* Arrow pointing to next tree */}
-                      {!isLastTree && (
+                      {index < sortedTrees.length - 1 && (
                         <div className="absolute top-20 -right-16 flex items-center">
-                          <div className="h-1 w-10 bg-primary-400"></div>
-                          <div className="text-primary-500 transform rotate-90 ml-1">▲</div>
+                          <div className="h-1 w-10 bg-primary-300"></div>
+                          <div className="text-primary-400 transform rotate-90 ml-1">▲</div>
                         </div>
                       )}
                       
@@ -222,15 +273,15 @@ const RoadmapView: React.FC = () => {
             </div>
             
             {/* Main roadmap content */}
-            <div className="bg-white rounded-xl shadow-sm p-8 transition-all duration-300 relative overflow-hidden">
+            <div className="bg-white rounded-xl shadow-lg p-8 transition-all duration-300 relative overflow-hidden">
               {activeTreeId ? (
                 <div className="relative">
-                  <div className="flex items-center mb-6">
+                  <div className="flex items-center mb-8">
                     <h2 className="text-2xl font-bold text-gray-800">
                       {trees.find(t => t.id === activeTreeId)?.name}
                     </h2>
                     <div className="ml-auto flex items-center">
-                      <Award className="h-5 w-5 text-yellow-500 mr-1" />
+                      <Award className="h-5 w-5 text-yellow-500 mr-2" />
                       <span className="text-sm font-medium text-gray-600">
                         {calculateTreeProgress(activeTreeId).completed} skills mastered
                       </span>
@@ -250,19 +301,25 @@ const RoadmapView: React.FC = () => {
                             </div>
                           ) : (
                             <div className="text-center py-12">
+                              <GitBranchPlus className="h-16 w-16 text-gray-300 mx-auto mb-4" />
                               <div className="text-gray-400 italic mb-2">No nodes in this skill tree</div>
-                              <p className="text-sm text-gray-500">This tree is empty. If you're a manager, you can add nodes in the Manage Trees section.</p>
+                              <p className="text-sm text-gray-500">
+                                This tree is empty. If you're a manager, you can add nodes in the Manage Trees section.
+                              </p>
                             </div>
                           );
-                        })()} 
+                        })()}
                       </div>
                     )}
                   </div>
                 </div>
               ) : (
                 <div className="text-center py-16">
+                  <GitBranchPlus className="h-16 w-16 text-gray-300 mx-auto mb-4" />
                   <div className="text-gray-400 mb-4">Select a skill tree to view its roadmap</div>
-                  <p className="text-sm text-gray-500">Click on one of the trees above to see your personalized learning path</p>
+                  <p className="text-sm text-gray-500">
+                    Click on one of the trees above to see your personalized learning path
+                  </p>
                 </div>
               )}
             </div>
@@ -270,7 +327,6 @@ const RoadmapView: React.FC = () => {
         </div>
       </div>
       
-      {/* Add some custom CSS for the connections between nodes */}
       <style jsx>{`
         .scrollbar-thin::-webkit-scrollbar {
           height: 8px;
