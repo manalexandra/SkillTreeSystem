@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit, Trash2, BookOpen } from 'lucide-react';
+import { Edit, Trash2, BookOpen, Star } from 'lucide-react';
 import type { SkillType } from '../../types';
 
 interface SkillTypeListProps {
@@ -32,7 +32,14 @@ const SkillTypeList: React.FC<SkillTypeListProps> = ({
           <li key={skillType.id} className="p-4 hover:bg-gray-50 transition-colors">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-medium text-gray-900">{skillType.name}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-medium text-gray-900">{skillType.name}</h3>
+                  <div className="flex items-center gap-1 text-yellow-500">
+                    {Array.from({ length: skillType.level }).map((_, i) => (
+                      <Star key={i} className="h-4 w-4 fill-current" />
+                    ))}
+                  </div>
+                </div>
                 {skillType.description && (
                   <p className="mt-1 text-gray-500">{skillType.description}</p>
                 )}

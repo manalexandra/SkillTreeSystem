@@ -25,6 +25,7 @@ export interface SkillType {
   id: string;
   name: string;
   description?: string;
+  level: number;
   createdBy: string;
   createdAt: string;
 }
