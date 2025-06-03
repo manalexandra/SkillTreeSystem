@@ -32,6 +32,14 @@ export interface SkillType {
   createdAt: string;
 }
 
+export interface CompletedTree {
+  userId: string;
+  treeId: string;
+  skillTypeId: string;
+  completedAt: string;
+  skillType?: SkillType;
+}
+
 export interface SkillTree {
   id: string;
   name: string;
@@ -39,6 +47,8 @@ export interface SkillTree {
   createdBy: string;
   createdAt: string;
   teamId?: string;
+  isCompleted?: boolean;
+  skillTypeId?: string;
 }
 
 export interface SkillTreeAssignment {

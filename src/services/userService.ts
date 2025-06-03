@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { User, UserRole, Team, TeamMember } from '../types';
+import type { User, UserRole, Team, TeamMember, CompletedTree, SkillType } from '../types';
 
 // Fetch current user from session
 export const getCurrentSessionUser = async (): Promise<User | null> => {
@@ -44,6 +44,64 @@ export const fetchAllUsers = async (): Promise<User[]> => {
   }
   
   return data as User[];
+};
+
+// Get completed trees for a user
+export const getCompletedTrees = async (userId: string): Promise<CompletedTree[]> => {
+  const { data, error } = await supabase
+    .from('completed_trees')
+    .select(`
+      *,
+      skill_type:skill_types (*)
+    `)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error fetching completed trees:', error);
+    return [];
+  }
+
+  return data.map(item => ({
+    userId: item.user_id,
+    treeId: item.tree_id,
+    skillTypeId: item.skill_type_id,
+    completedAt: item.completed_at,
+    skillType: item.skill_type as SkillType
+  }));
+};
+
+// Mark a tree as completed
+export const markTreeCompleted = async (userId: string, treeId: string, skillTypeId: string): Promise<boolean> => {
+  const { error } = await supabase
+    .from('completed_trees')
+    .insert({
+      user_id: userId,
+      tree_id: treeId,
+      skill_type_id: skillTypeId
+    });
+
+  if (error) {
+    console.error('Error marking tree as completed:', error);
+    return false;
+  }
+
+  return true;
+};
+
+// Check if a tree is completable
+export const isTreeCompletable = async (userId: string, treeId: string): Promise<boolean> => {
+  const { data, error } = await supabase
+    .rpc('is_tree_completable', {
+      p_user_id: userId,
+      p_tree_id: treeId
+    });
+
+  if (error) {
+    console.error('Error checking if tree is completable:', error);
+    return false;
+  }
+
+  return data;
 };
 
 // Fetch team members
