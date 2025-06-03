@@ -302,3 +302,5 @@ export const updateUserProgress = async (
   
   return {
     userId: data.user_i
+  }
+}
