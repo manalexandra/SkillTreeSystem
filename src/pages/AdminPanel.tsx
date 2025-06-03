@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { fetchAllUsers, updateUserRole, deleteUser, addUser } from '../services/userService';
-import { getSkillTrees } from '../services/supabase';
+import { getSkillTrees, supabase } from '../services/supabase';
 import { User, UserRole, Team } from '../types';
 import { Users, UserPlus, Trash2, Edit, Save, X, AlertTriangle, Search, Shield, GitBranchPlus, CheckCircle, Building2, Plus } from 'lucide-react';
 
@@ -723,7 +723,6 @@ const AdminPanel: React.FC = () => {
                     >
                       <option value="user">User</option>
                       <option value="manager">Manager</option>
-                
                     </select>
                   </div>
                 </div>
