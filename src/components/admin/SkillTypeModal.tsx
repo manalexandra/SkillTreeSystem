@@ -9,12 +9,12 @@ interface SkillTypeModalProps {
   isLoading?: boolean;
 }
 
-const SkillTypeModal: React.FC<SkillTypeModalProps> = ({
+export default function SkillTypeModal({
   skillType,
   onClose,
   onSave,
   isLoading = false,
-}) => {
+}: SkillTypeModalProps) {
   const [name, setName] = useState(skillType?.name || '');
   const [description, setDescription] = useState(skillType?.description || '');
 
