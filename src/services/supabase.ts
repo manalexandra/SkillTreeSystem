@@ -308,6 +308,26 @@ export const updateUserProgress = async (
   };
 };
 
+export const getAllUserProgress = async (userId: string): Promise<Record<string, boolean>> => {
+  const { data: progress, error } = await supabase
+    .from('user_node_progress')
+    .select('node_id, completed')
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error fetching user progress:', error);
+    return {};
+  }
+
+  // Convert to Record<string, boolean>
+  const progressMap: Record<string, boolean> = {};
+  progress.forEach(p => {
+    progressMap[p.node_id] = p.completed;
+  });
+
+  return progressMap;
+};
+
 export const getUserProgress = async (userId: string, treeId: string): Promise<Record<string, boolean>> => {
   // First get all nodes for the tree
   const { data: nodes, error: nodesError } = await supabase
