@@ -7,9 +7,17 @@ import {
   createSkillNode,
   updateSkillNode,
   deleteSkillNode,
-  updateUserProgress
+  updateUserProgress,
+  fetchUserSkillTrees
 } from '../services/supabase';
 import type { SkillTree, SkillNode } from '../types';
+
+interface CreateTreeData {
+  name: string;
+  description?: string;
+  createdBy: string;
+  assignedUsers?: string[];
+}
 
 interface SkillTreeState {
   trees: SkillTree[];
@@ -23,7 +31,7 @@ interface SkillTreeState {
   // Actions
   fetchTrees: () => Promise<void>;
   fetchTreeData: (treeId: string, userId: string) => Promise<void>;
-  createNewTree: (name: string, userId: string, assignedUserId?: string) => Promise<SkillTree | null>;
+  createNewTree: (data: CreateTreeData) => Promise<SkillTree | null>;
   addNode: (node: Omit<SkillNode, 'id' | 'createdAt'>) => Promise<SkillNode | null>;
   updateNode: (node: Partial<SkillNode> & { id: string }) => Promise<SkillNode | null>;
   removeNode: (nodeId: string) => Promise<boolean>;
@@ -115,22 +123,21 @@ export const useSkillTreeStore = create<SkillTreeState>((set, get) => ({
     }
   },
   
-  createNewTree: async (name: string, userId: string, assignedUserId?: string) => {
+  createNewTree: async (data: CreateTreeData) => {
     set({ loading: true, error: null });
     try {
-      // For mock/demo, create a simple tree object
-      const newTree = {
-        id: Math.random().toString(36).substr(2, 9),
-        name,
-        createdBy: userId,
-        createdAt: new Date().toISOString(),
-        assignedUserId: assignedUserId || undefined,
-      };
-      // In real implementation, call API to create
-      set((state) => ({
-        trees: [...state.trees, newTree],
-        loading: false
-      }));
+      const newTree = await createSkillTree({
+        name: data.name,
+        createdBy: data.createdBy,
+        assignedUsers: data.assignedUsers
+      });
+      
+      if (newTree) {
+        set((state) => ({
+          trees: [...state.trees, newTree],
+          loading: false
+        }));
+      }
       return newTree;
     } catch (error) {
       set({
