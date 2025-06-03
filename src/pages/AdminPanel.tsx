@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import { useAuth } from '../context/AuthContext';
-import { fetchAllUsers, updateUserRole, deleteUser, addUser } from '../services/userService';
+import { fetchAllUsers, updateUserRole, deleteUser, addUser, getTeamMembers } from '../services/userService';
 import { getSkillTrees, supabase } from '../services/supabase';
-import { User, UserRole, Team } from '../types';
-import { Users, UserPlus, Trash2, Edit, Save, X, AlertTriangle, Search, Shield, GitBranchPlus, CheckCircle, Building2, Plus } from 'lucide-react';
+import { User, UserRole, Team, TeamMember } from '../types';
+import { Users, UserPlus, Trash2, Edit, Save, X, AlertTriangle, Search, Shield, GitBranchPlus, CheckCircle, Building2, Plus, Eye } from 'lucide-react';
 
 type TabType = 'users' | 'teams';
 
@@ -39,15 +39,16 @@ const AdminPanel: React.FC = () => {
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [showAddMembers, setShowAddMembers] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [viewingTeamId, setViewingTeamId] = useState<string | null>(null);
+  const [viewTeamMembers, setViewTeamMembers] = useState<TeamMember[]>([]);
+  const [loadingTeamMembers, setLoadingTeamMembers] = useState(false);
 
-  // Check if current user is admin/manager
   useEffect(() => {
     if (user && user.role !== 'manager') {
       navigate('/dashboard');
     }
   }, [user, navigate]);
 
-  // Fetch all users
   useEffect(() => {
     const loadUsers = async () => {
       try {
@@ -67,7 +68,6 @@ const AdminPanel: React.FC = () => {
     }
   }, [user]);
 
-  // Fetch all teams
   useEffect(() => {
     const loadTeams = async () => {
       try {
@@ -89,7 +89,6 @@ const AdminPanel: React.FC = () => {
     }
   }, [user]);
 
-  // Fetch user trees for all users
   useEffect(() => {
     if (activeTab === 'users' && users.length > 0) {
       setUserTreesLoading(true);
@@ -105,26 +104,41 @@ const AdminPanel: React.FC = () => {
     }
   }, [activeTab, users]);
 
-  // Filter users based on search term
+  useEffect(() => {
+    if (viewingTeamId) {
+      loadTeamMembers(viewingTeamId);
+    }
+  }, [viewingTeamId]);
+
+  const loadTeamMembers = async (teamId: string) => {
+    setLoadingTeamMembers(true);
+    try {
+      const members = await getTeamMembers(teamId);
+      setViewTeamMembers(members);
+    } catch (err) {
+      console.error('Error loading team members:', err);
+      setError('Failed to load team members');
+    } finally {
+      setLoadingTeamMembers(false);
+    }
+  };
+
   const filteredUsers = users.filter(u =>
     u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.role.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Filter teams based on search term
   const filteredTeams = teams.filter(team =>
     team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     team.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Handle user role update
   const handleUpdateRole = async (userId: string) => {
     if (!editRole) return;
     
     try {
       await updateUserRole(userId, editRole);
       
-      // Update local state
       setUsers(users.map(u => 
         u.id === userId ? { ...u, role: editRole } : u
       ));
@@ -139,12 +153,10 @@ const AdminPanel: React.FC = () => {
     setEditingUserId(null);
   };
 
-  // Handle user deletion
   const handleDeleteUser = async (userId: string) => {
     try {
       await deleteUser(userId);
       
-      // Update local state
       setUsers(users.filter(u => u.id !== userId));
       
       setSuccessMessage('User deleted successfully');
@@ -157,7 +169,6 @@ const AdminPanel: React.FC = () => {
     setShowDeleteConfirm(null);
   };
 
-  // Handle adding a new user
   const handleAddUser = async () => {
     if (!newUserEmail || !newUserPassword) {
       setAddUserError('Email and password are required');
@@ -169,11 +180,9 @@ const AdminPanel: React.FC = () => {
       
       await addUser(newUserEmail, newUserPassword, newUserRole);
       
-      // Refresh the user list
       const updatedUsers = await fetchAllUsers();
       setUsers(updatedUsers);
       
-      // Reset form
       setNewUserEmail('');
       setNewUserPassword('');
       setNewUserRole('user');
@@ -188,7 +197,6 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  // Handle creating a new team
   const handleCreateTeam = async () => {
     if (!newTeamName) {
       setError('Team name is required');
@@ -208,7 +216,6 @@ const AdminPanel: React.FC = () => {
 
       if (error) throw error;
 
-      // Add team members
       if (selectedTeamMembers.length > 0) {
         const { error: membersError } = await supabase
           .from('team_members')
@@ -222,10 +229,8 @@ const AdminPanel: React.FC = () => {
         if (membersError) throw membersError;
       }
 
-      // Update local state
       setTeams([...teams, data]);
       
-      // Reset form
       setNewTeamName('');
       setNewTeamDescription('');
       setSelectedTeamMembers([]);
@@ -239,7 +244,6 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  // Handle updating a team
   const handleUpdateTeam = async (teamId: string) => {
     try {
       const team = teams.find(t => t.id === teamId);
@@ -264,7 +268,6 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  // Handle deleting a team
   const handleDeleteTeam = async (teamId: string) => {
     try {
       const { error } = await supabase
@@ -274,7 +277,6 @@ const AdminPanel: React.FC = () => {
 
       if (error) throw error;
 
-      // Update local state
       setTeams(teams.filter(t => t.id !== teamId));
       setShowDeleteTeamConfirm(null);
       
@@ -286,7 +288,6 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  // Handle removing a team member
   const handleRemoveMember = async (userId: string) => {
     if (!selectedTeam) return;
 
@@ -299,7 +300,6 @@ const AdminPanel: React.FC = () => {
 
       if (error) throw error;
 
-      // Update local state
       setTeamMembers(teamMembers.filter(member => member.userId !== userId));
       
       setSuccessMessage('Team member removed successfully');
@@ -310,7 +310,6 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  // Handle adding new team members
   const handleAddMembers = async () => {
     if (!selectedTeam || selectedUsers.length === 0) return;
 
@@ -327,7 +326,6 @@ const AdminPanel: React.FC = () => {
 
       if (error) throw error;
 
-      // Refresh team members
       const { data: newMembers } = await supabase
         .from('team_members')
         .select('*, user:users(*)')
@@ -354,6 +352,191 @@ const AdminPanel: React.FC = () => {
     setEditingUserId(null);
   };
 
+  const renderTeamsList = () => (
+    <div className="space-y-4">
+      {filteredTeams.map(team => (
+        <div
+          key={team.id}
+          className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow"
+        >
+          {editingTeamId === team.id ? (
+            <div className="space-y-4">
+              <input
+                type="text"
+                value={team.name}
+                onChange={(e) => setTeams(teams.map(t =>
+                  t.id === team.id ? { ...t, name: e.target.value } : t
+                ))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder="Team name"
+              />
+              <textarea
+                value={team.description || ''}
+                onChange={(e) => setTeams(teams.map(t =>
+                  t.id === team.id ? { ...t, description: e.target.value } : t
+                ))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder="Team description"
+                rows={2}
+              />
+              <div className="flex justify-end space-x-2">
+                <button
+                  onClick={() => handleUpdateTeam(team.id)}
+                  className="flex items-center px-3 py-1 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+                >
+                  <Save className="h-4 w-4 mr-1" />
+                  Save
+                </button>
+                <button
+                  onClick={() => setEditingTeamId(null)}
+                  className="flex items-center px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="flex-grow">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-medium text-gray-900">{team.name}</h3>
+                    <button
+                      onClick={() => setViewingTeamId(team.id)}
+                      className="text-gray-400 hover:text-primary-600 transition-colors"
+                      title="View team members"
+                    >
+                      <Eye className="h-5 w-5" />
+                    </button>
+                  </div>
+                  {team.description && (
+                    <p className="text-gray-500 mt-1">{team.description}</p>
+                  )}
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setEditingTeamId(team.id)}
+                    className="text-gray-400 hover:text-primary-600 transition-colors"
+                  >
+                    <Edit className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteTeamConfirm(team.id)}
+                    className="text-gray-400 hover:text-red-600 transition-colors"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+
+              {showDeleteTeamConfirm === team.id && (
+                <div className="mt-4 p-4 bg-red-50 rounded-lg border border-red-200">
+                  <p className="text-red-700 text-sm mb-3">
+                    Are you sure you want to delete this team? This action cannot be undone.
+                  </p>
+                  <div className="flex justify-end space-x-2">
+                    <button
+                      onClick={() => handleDeleteTeam(team.id)}
+                      className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      onClick={() => setShowDeleteTeamConfirm(null)}
+                      className="px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      ))}
+
+      {filteredTeams.length === 0 && (
+        <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+          <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-500 font-medium">No teams found</p>
+          <p className="text-sm text-gray-400 mt-1">
+            {searchTerm ? 'Try a different search term' : 'Create your first team to get started'}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderViewMembersModal = () => {
+    if (!viewingTeamId) return null;
+
+    const team = teams.find(t => t.id === viewingTeamId);
+    if (!team) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden">
+          <div className="p-6 bg-gradient-to-r from-primary-600 to-primary-700">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-semibold text-white flex items-center">
+                <Users className="h-6 w-6 mr-2" />
+                {team.name} - Team Members
+              </h3>
+              <button
+                onClick={() => setViewingTeamId(null)}
+                className="text-white/80 hover:text-white transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+          </div>
+
+          <div className="p-6">
+            {loadingTeamMembers ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
+                <p className="text-gray-500 mt-2">Loading team members...</p>
+              </div>
+            ) : viewTeamMembers.length > 0 ? (
+              <div className="space-y-4">
+                {viewTeamMembers.map(member => (
+                  <div key={member.userId} className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-center">
+                      <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-medium">
+                        {member.user?.email.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="ml-3">
+                        <div className="font-medium text-gray-900">{member.user?.email}</div>
+                        <div className="text-sm text-gray-500">
+                          Joined {new Date(member.joinedAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        member.user?.role === 'manager' 
+                          ? 'bg-purple-100 text-purple-800' 
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {member.user?.role}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">No members in this team yet</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <>
@@ -377,7 +560,6 @@ const AdminPanel: React.FC = () => {
       <Navbar />
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Header */}
           <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 mb-8">
             <div className="p-6 bg-gradient-to-r from-primary-600 to-primary-700">
               <div className="flex items-center justify-between">
@@ -393,7 +575,6 @@ const AdminPanel: React.FC = () => {
               </div>
             </div>
 
-            {/* Tabs */}
             <div className="border-b border-gray-200">
               <nav className="flex -mb-px">
                 <button
@@ -442,7 +623,6 @@ const AdminPanel: React.FC = () => {
                 </button>
               </div>
 
-              {/* Notification messages */}
               {error && (
                 <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg relative flex items-center">
                   <AlertTriangle className="h-5 w-5 mr-2" />
@@ -469,9 +649,7 @@ const AdminPanel: React.FC = () => {
                 </div>
               )}
 
-              {/* Content */}
               {activeTab === 'users' ? (
-                /* Users list */
                 <div className="bg-white rounded-xl overflow-hidden border border-gray-200">
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
@@ -604,118 +782,13 @@ const AdminPanel: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                /* Teams list */
-                <div className="space-y-4">
-                  {filteredTeams.map(team => (
-                    <div
-                      key={team.id}
-                      className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow"
-                    >
-                      {editingTeamId === team.id ? (
-                        <div className="space-y-4">
-                          <input
-                            type="text"
-                            value={team.name}
-                            onChange={(e) => setTeams(teams.map(t =>
-                              t.id === team.id ? { ...t, name: e.target.value } : t
-                            ))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                            placeholder="Team name"
-                          />
-                          <textarea
-                            value={team.description || ''}
-                            onChange={(e) => setTeams(teams.map(t =>
-                              t.id === team.id ? { ...t, description: e.target.value } : t
-                            ))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                            placeholder="Team description"
-                            rows={2}
-                          />
-                          <div className="flex justify-end space-x-2">
-                            <button
-                              onClick={() => handleUpdateTeam(team.id)}
-                              className="flex items-center px-3 py-1 bg-primary-600 text-white rounded-md hover:bg-primary-700"
-                            >
-                              <Save className="h-4 w-4 mr-1" />
-                              Save
-                            </button>
-                            <button
-                              onClick={() => setEditingTeamId(null)}
-                              className="flex items-center px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-50"
-                            >
-                              <X className="h-4 w-4 mr-1" />
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h3 className="text-lg font-medium text-gray-900">{team.name}</h3>
-                              {team.description && (
-                                <p className="text-gray-500 mt-1">{team.description}</p>
-                              )}
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <button
-                                onClick={() => setEditingTeamId(team.id)}
-                                className="text-gray-400 hover:text-primary-600 transition-colors"
-                              >
-                                <Edit className="h-5 w-5" />
-                              </button>
-                              <button
-                                onClick={() => setShowDeleteTeamConfirm(team.id)}
-                                className="text-gray-400 hover:text-red-600 transition-colors"
-                              >
-                                <Trash2 className="h-5 w-5" />
-                              </button>
-                            </div>
-                          </div>
-
-                          {showDeleteTeamConfirm === team.id && (
-                            <div className="mt-4 p-4 bg-red-50 rounded-lg border border-red-200">
-                              <p className="text-red-700 text-sm mb-3">
-                                Are you sure you want to delete this team? This action cannot be undone.
-                              </p>
-                              <div className="flex justify-end space-x-2">
-                                <button
-                                  onClick={() => handleDeleteTeam(team.id)}
-                                  className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700"
-                                >
-                                  Delete
-                                </button>
-                                <button
-                                  onClick={() => setShowDeleteTeamConfirm(null)}
-                                  className="px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-50"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  ))}
-
-                  {filteredTeams.length === 0 && (
-                    <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                      <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-500 font-medium">No teams found</p>
-                      <p className="text-sm text-gray-400 mt-1">
-                        {searchTerm ? 'Try a different search term' : 'Create your first team to get started'}
-                      </p>
-                    </div>
-                  )}
-                </div>
+                renderTeamsList()
               )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Add User Modal */}
       {addingUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden">
@@ -811,7 +884,6 @@ const AdminPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Create Team Modal */}
       {showCreateTeam && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden">
@@ -915,7 +987,6 @@ const AdminPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Team Members Modal */}
       {selectedTeam && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-3xl w-full overflow-hidden">
@@ -986,7 +1057,6 @@ const AdminPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Add Members Modal */}
       {showAddMembers && selectedTeam && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden">
@@ -1070,6 +1140,8 @@ const AdminPanel: React.FC = () => {
           </div>
         </div>
       )}
+
+      {viewingTeamId && renderViewMembersModal()}
     </>
   );
 };
