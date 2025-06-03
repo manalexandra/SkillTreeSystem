@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { User, UserRole, SkillTree } from '../types';
+import type { User, UserRole, Team, TeamMember } from '../types';
 
 // Fetch current user from session
 export const getCurrentSessionUser = async (): Promise<User | null> => {
@@ -27,6 +27,66 @@ export const fetchAllUsers = async (): Promise<User[]> => {
   }
   
   return data as User[];
+};
+
+// Fetch team members
+export const getTeamMembers = async (teamId: string): Promise<TeamMember[]> => {
+  const { data, error } = await supabase
+    .from('team_members')
+    .select(`
+      team_id,
+      user_id,
+      joined_at,
+      users:user_id (
+        id,
+        email,
+        role
+      )
+    `)
+    .eq('team_id', teamId);
+
+  if (error) {
+    console.error('Error fetching team members:', error);
+    return [];
+  }
+
+  return data.map(member => ({
+    teamId: member.team_id,
+    userId: member.user_id,
+    joinedAt: member.joined_at,
+    user: member.users as User
+  }));
+};
+
+// Add members to team
+export const addTeamMembers = async (teamId: string, userIds: string[]): Promise<void> => {
+  const { error } = await supabase
+    .from('team_members')
+    .insert(
+      userIds.map(userId => ({
+        team_id: teamId,
+        user_id: userId
+      }))
+    );
+
+  if (error) {
+    console.error('Error adding team members:', error);
+    throw error;
+  }
+};
+
+// Remove member from team
+export const removeTeamMember = async (teamId: string, userId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('team_members')
+    .delete()
+    .eq('team_id', teamId)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error removing team member:', error);
+    throw error;
+  }
 };
 
 // Fetch users assigned to a specific tree
@@ -59,21 +119,6 @@ export const getTreeAssignedUsers = async (treeId: string): Promise<User[]> => {
   }
 
   return users as User[];
-};
-
-// Fetch all skill trees from Supabase
-export const fetchAllSkillTrees = async (): Promise<SkillTree[]> => {
-  const { data, error } = await supabase
-    .from('skill_trees')
-    .select('*')
-    .order('created_at', { ascending: false });
-    
-  if (error) {
-    console.error('Error fetching skill trees:', error);
-    return [];
-  }
-  
-  return data as SkillTree[];
 };
 
 // Update user role

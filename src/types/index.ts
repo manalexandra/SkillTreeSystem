@@ -18,6 +18,7 @@ export interface TeamMember {
   teamId: string;
   userId: string;
   joinedAt: string;
+  user?: User;
 }
 
 export interface SkillTree {
