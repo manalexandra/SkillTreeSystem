@@ -178,7 +178,7 @@ export const deleteUser = async (userId: string): Promise<void> => {
   }
 };
 
-// Add new user - let Supabase handle the user table insertion
+// Add new user
 export const addUser = async (email: string, password: string, role: UserRole): Promise<void> => {
   try {
     const { data, error } = await supabase.auth.signUp({
