@@ -3,7 +3,7 @@ import { useSkillTreeStore } from '../../stores/skillTreeStore';
 import { useAuth } from '../../context/AuthContext';
 import { fetchAllUsers, getTeamMembers } from '../../services/userService';
 import { X, Users, Search, Building2 } from 'lucide-react';
-import type { User, Team } from '../../types';
+import type { User, Team, SkillType } from '../../types';
 import { supabase } from '../../services/supabase';
 
 interface CreateTreeFormProps {
@@ -12,12 +12,13 @@ interface CreateTreeFormProps {
 }
 
 const CreateTreeForm: React.FC<CreateTreeFormProps> = ({ onClose, onSuccess }) => {
-  const [name, setName] = useState('');
+  const [selectedSkillType, setSelectedSkillType] = useState<string>('');
   const [description, setDescription] = useState('');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [skillTypes, setSkillTypes] = useState<SkillType[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,27 +26,28 @@ const CreateTreeForm: React.FC<CreateTreeFormProps> = ({ onClose, onSuccess }) =
   const { user } = useAuth();
 
   useEffect(() => {
-    const loadUsers = async () => {
-      const data = await fetchAllUsers();
-      setUsers(data);
-    };
-    loadUsers();
+    const loadData = async () => {
+      try {
+        const [usersData, teamsData, skillTypesData] = await Promise.all([
+          fetchAllUsers(),
+          supabase.from('teams').select('*').order('name'),
+          supabase.from('skill_types').select('*').order('name')
+        ]);
 
-    // Fetch teams
-    const loadTeams = async () => {
-      const { data, error } = await supabase
-        .from('teams')
-        .select('*')
-        .order('name');
-      
-      if (error) {
-        console.error('Error loading teams:', error);
-        return;
+        setUsers(usersData);
+        
+        if (teamsData.error) throw teamsData.error;
+        setTeams(teamsData.data || []);
+        
+        if (skillTypesData.error) throw skillTypesData.error;
+        setSkillTypes(skillTypesData.data || []);
+      } catch (error) {
+        console.error('Error loading data:', error);
+        setError('Failed to load required data');
       }
-      
-      setTeams(data);
     };
-    loadTeams();
+
+    loadData();
   }, []);
 
   // When a team is selected, automatically select all its members
@@ -69,14 +71,20 @@ const CreateTreeForm: React.FC<CreateTreeFormProps> = ({ onClose, onSuccess }) =
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !selectedSkillType) return;
+    
+    const selectedType = skillTypes.find(type => type.id === selectedSkillType);
+    if (!selectedType) {
+      setError('Please select a skill type');
+      return;
+    }
     
     setLoading(true);
     setError(null);
     
     try {
       const newTree = await createNewTree({
-        name,
+        name: selectedType.name,
         description,
         createdBy: user.id,
         assignedUsers: selectedUsers,
@@ -99,6 +107,19 @@ const CreateTreeForm: React.FC<CreateTreeFormProps> = ({ onClose, onSuccess }) =
     u.role.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'technical':
+        return 'bg-blue-100 text-blue-800';
+      case 'soft_skill':
+        return 'bg-green-100 text-green-800';
+      case 'leadership':
+        return 'bg-purple-100 text-purple-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-lg max-w-md w-full overflow-hidden">
@@ -120,18 +141,38 @@ const CreateTreeForm: React.FC<CreateTreeFormProps> = ({ onClose, onSuccess }) =
           )}
 
           <div className="mb-4">
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-              Skill Tree Name
+            <label htmlFor="skillType" className="block text-sm font-medium text-gray-700 mb-1">
+              Skill Type
             </label>
-            <input
-              type="text"
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+            <select
+              id="skillType"
+              value={selectedSkillType}
+              onChange={(e) => setSelectedSkillType(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-              placeholder="e.g. Frontend Development Skills"
               required
-            />
+            >
+              <option value="">Select a skill type</option>
+              {skillTypes.map(type => (
+                <option key={type.id} value={type.id}>
+                  {type.name}
+                  {' '}
+                  ({type.type.split('_').map(word => 
+                    word.charAt(0).toUpperCase() + word.slice(1)
+                  ).join(' ')})
+                </option>
+              ))}
+            </select>
+            {selectedSkillType && (
+              <div className="mt-2">
+                <span className={`inline-flex text-xs px-2 py-1 rounded-full ${
+                  getTypeColor(skillTypes.find(t => t.id === selectedSkillType)?.type || '')
+                }`}>
+                  {skillTypes.find(t => t.id === selectedSkillType)?.type.split('_').map(word => 
+                    word.charAt(0).toUpperCase() + word.slice(1)
+                  ).join(' ')}
+                </span>
+              </div>
+            )}
           </div>
           
           <div className="mb-4">
@@ -234,9 +275,9 @@ const CreateTreeForm: React.FC<CreateTreeFormProps> = ({ onClose, onSuccess }) =
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !selectedSkillType}
               className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 ${
-                loading ? 'opacity-70 cursor-not-allowed' : ''
+                loading || !selectedSkillType ? 'opacity-70 cursor-not-allowed' : ''
               }`}
             >
               {loading ? 'Creating...' : 'Create Tree'}
