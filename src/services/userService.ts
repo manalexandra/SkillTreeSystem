@@ -70,8 +70,31 @@ export const getCompletedTrees = async (userId: string): Promise<CompletedTree[]
   }));
 };
 
+// Check if a tree is already completed by a user
+export const isTreeCompleted = async (userId: string, treeId: string): Promise<boolean> => {
+  const { data, error } = await supabase
+    .from('completed_trees')
+    .select('tree_id')
+    .eq('user_id', userId)
+    .eq('tree_id', treeId)
+    .single();
+
+  if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
+    console.error('Error checking if tree is completed:', error);
+    return false;
+  }
+
+  return !!data;
+};
+
 // Mark a tree as completed
 export const markTreeCompleted = async (userId: string, treeId: string, skillTypeId: string): Promise<boolean> => {
+  // First check if the tree is already completed
+  const alreadyCompleted = await isTreeCompleted(userId, treeId);
+  if (alreadyCompleted) {
+    return false;
+  }
+
   const { error } = await supabase
     .from('completed_trees')
     .insert({
@@ -90,6 +113,12 @@ export const markTreeCompleted = async (userId: string, treeId: string, skillTyp
 
 // Check if a tree is completable
 export const isTreeCompletable = async (userId: string, treeId: string): Promise<boolean> => {
+  // First check if the tree is already completed
+  const alreadyCompleted = await isTreeCompleted(userId, treeId);
+  if (alreadyCompleted) {
+    return false;
+  }
+
   const { data, error } = await supabase
     .rpc('is_tree_completable', {
       p_user_id: userId,
