@@ -3,9 +3,21 @@ import Navbar from '../components/layout/Navbar';
 import { useSkillTreeStore } from '../stores/skillTreeStore';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
-import { ChevronDown, ChevronRight, GitBranchPlus, CheckCircle, Circle, Award, Map, Loader2 } from 'lucide-react';
-import { getAllSkillNodes, getAllUserProgress } from '../services/supabase';
-import type { SkillNode } from '../types';
+import { 
+  ChevronDown, 
+  ChevronRight, 
+  GitBranchPlus, 
+  CheckCircle, 
+  Circle, 
+  Award, 
+  Map, 
+  Loader2,
+  Trophy,
+  X
+} from 'lucide-react';
+import { getAllSkillNodes, getAllUserProgress, supabase } from '../services/supabase';
+import { isTreeCompletable, markTreeCompleted } from '../services/userService';
+import type { SkillNode, SkillType } from '../types';
 
 interface TreeNode {
   id: string;
@@ -27,26 +39,28 @@ const RoadmapView: React.FC = () => {
   const [allNodes, setAllNodes] = useState<SkillNode[]>([]);
   const [userProgress, setUserProgress] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
+  const [completableTreeId, setCompletableTreeId] = useState<string | null>(null);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [selectedSkillType, setSelectedSkillType] = useState<SkillType | null>(null);
+  const [skillTypes, setSkillTypes] = useState<SkillType[]>([]);
+  const [completingTree, setCompletingTree] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
-  // Sort trees by createdAt (oldest to newest)
   const sortedTrees = [...trees].sort((a, b) => 
     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
   
   useEffect(() => {
-    // Auto-expand the first tree when page loads
     if (sortedTrees.length > 0 && expandedTreeIds.length === 0) {
       setExpandedTreeIds([sortedTrees[0].id]);
       setActiveTreeId(sortedTrees[0].id);
     }
     
-    // Trigger animation after component mounts
     setTimeout(() => {
       setAnimateIn(true);
     }, 100);
   }, [sortedTrees]);
 
-  // Fetch all nodes and user progress
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -68,6 +82,39 @@ const RoadmapView: React.FC = () => {
     fetchData();
   }, [user]);
 
+  useEffect(() => {
+    const checkCompletableTree = async () => {
+      if (!user || !activeTreeId) return;
+
+      try {
+        const { data: types, error: typesError } = await supabase
+          .from('skill_types')
+          .select('*');
+
+        if (typesError) throw typesError;
+        setSkillTypes(types);
+
+        const completable = await isTreeCompletable(user.id, activeTreeId);
+        if (completable) {
+          setCompletableTreeId(activeTreeId);
+          
+          const tree = trees.find(t => t.id === activeTreeId);
+          if (tree) {
+            const matchingType = types.find(type => type.name === tree.name);
+            setSelectedSkillType(matchingType || null);
+          }
+        } else {
+          setCompletableTreeId(null);
+          setSelectedSkillType(null);
+        }
+      } catch (err) {
+        console.error('Error checking completable tree:', err);
+      }
+    };
+
+    checkCompletableTree();
+  }, [user, activeTreeId, trees]);
+
   const handleToggleTree = (treeId: string) => {
     setExpandedTreeIds((ids) =>
       ids.includes(treeId) ? ids.filter((id) => id !== treeId) : [...ids, treeId]
@@ -75,12 +122,10 @@ const RoadmapView: React.FC = () => {
     setActiveTreeId(treeId);
   };
   
-  // Helper to check if a node is completed
   const isNodeCompleted = (nodeId: string): boolean => {
     return Boolean(user && userProgress[nodeId]);
   };
 
-  // Helper to build a tree structure from flat nodes with completion info
   const buildNodeTree = (treeId: string, parentId: string | null = null): TreeNode[] => {
     return allNodes
       .filter((n) => n.treeId === treeId && n.parentId === parentId)
@@ -92,12 +137,29 @@ const RoadmapView: React.FC = () => {
       }));
   };
 
-  // Calculate progress for a tree
   const calculateTreeProgress = (treeId: string): { completed: number; total: number } => {
     const treeNodes = allNodes.filter(node => node.treeId === treeId);
     const total = treeNodes.length;
     const completed = treeNodes.filter(node => isNodeCompleted(node.id)).length;
     return { completed, total };
+  };
+
+  const handleCompleteTree = async () => {
+    if (!user || !completableTreeId || !selectedSkillType) return;
+    
+    setCompletingTree(true);
+    setError(null);
+    
+    try {
+      await markTreeCompleted(user.id, completableTreeId, selectedSkillType.id);
+      setShowCompletionModal(false);
+      
+      await fetchTrees();
+    } catch (err) {
+      setError('Failed to complete tree. Please try again.');
+    } finally {
+      setCompletingTree(false);
+    }
   };
 
   if (loading) {
@@ -114,7 +176,6 @@ const RoadmapView: React.FC = () => {
     );
   }
 
-  // Recursive render for nodes with a more visually appealing style
   const renderNode = (node: TreeNode, isLast = false, pathIndex = 0) => {
     const hasChildren = node.children && node.children.length > 0;
     const completionStatus = node.isCompleted ? 'completed' : 'pending';
@@ -198,9 +259,7 @@ const RoadmapView: React.FC = () => {
               </p>
             </div>
             
-            {/* Timeline header with trees and connecting lines */}
             <div className="relative overflow-x-auto pb-16 mb-8 scrollbar-thin scrollbar-thumb-primary-200 scrollbar-track-gray-100">
-              {/* Horizontal line connecting all trees */}
               <div className="absolute top-20 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-300 to-primary-200 z-0"></div>
               
               <div className="relative flex px-8 mt-4 pt-4 pb-4">
@@ -214,7 +273,6 @@ const RoadmapView: React.FC = () => {
                   
                   return (
                     <div key={tree.id} className="relative flex flex-col items-center mr-20 last:mr-0">
-                      {/* Tree node */}
                       <button
                         onClick={() => handleToggleTree(tree.id)}
                         className={`relative z-10 flex-shrink-0 rounded-xl px-5 py-4 ${
@@ -246,15 +304,12 @@ const RoadmapView: React.FC = () => {
                         </div>
                       </button>
                       
-                      {/* Vertical connector line */}
                       <div className="absolute top-16 h-4 w-1 bg-primary-200"></div>
                       
-                      {/* Tree sequence number */}
                       <div className="absolute -bottom-10 bg-gradient-to-br from-primary-500 to-primary-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold shadow-md">
                         {index + 1}
                       </div>
                       
-                      {/* Arrow pointing to next tree */}
                       {index < sortedTrees.length - 1 && (
                         <div className="absolute top-20 -right-16 flex items-center">
                           <div className="h-1 w-10 bg-primary-300"></div>
@@ -262,7 +317,6 @@ const RoadmapView: React.FC = () => {
                         </div>
                       )}
                       
-                      {/* Creation date */}
                       <div className="absolute -top-6 text-xs text-gray-500">
                         Created: {new Date(tree.createdAt).toLocaleDateString()}
                       </div>
@@ -272,19 +326,30 @@ const RoadmapView: React.FC = () => {
               </div>
             </div>
             
-            {/* Main roadmap content */}
             <div className="bg-white rounded-xl shadow-lg p-8 transition-all duration-300 relative overflow-hidden">
               {activeTreeId ? (
                 <div className="relative">
-                  <div className="flex items-center mb-8">
+                  <div className="flex items-center justify-between mb-8">
                     <h2 className="text-2xl font-bold text-gray-800">
                       {trees.find(t => t.id === activeTreeId)?.name}
                     </h2>
-                    <div className="ml-auto flex items-center">
-                      <Award className="h-5 w-5 text-yellow-500 mr-2" />
-                      <span className="text-sm font-medium text-gray-600">
-                        {calculateTreeProgress(activeTreeId).completed} skills mastered
-                      </span>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center">
+                        <Award className="h-5 w-5 text-yellow-500 mr-2" />
+                        <span className="text-sm font-medium text-gray-600">
+                          {calculateTreeProgress(activeTreeId).completed} skills mastered
+                        </span>
+                      </div>
+                      
+                      {completableTreeId === activeTreeId && (
+                        <button
+                          onClick={() => setShowCompletionModal(true)}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm flex items-center gap-2"
+                        >
+                          <Trophy className="h-5 w-5" />
+                          Complete Tree
+                        </button>
+                      )}
                     </div>
                   </div>
                   
@@ -326,6 +391,59 @@ const RoadmapView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {showCompletionModal && selectedSkillType && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-8">
+            <div className="text-center">
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Trophy className="h-10 w-10 text-green-600" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                Congratulations!
+              </h3>
+              <p className="text-gray-600 mb-6">
+                You've mastered all skills in this tree! Complete it to earn your badge in{' '}
+                <span className="font-medium">{selectedSkillType.name}</span>.
+              </p>
+
+              {error && (
+                <div className="mb-6 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                  {error}
+                </div>
+              )}
+
+              <div className="flex justify-center space-x-4">
+                <button
+                  onClick={() => setShowCompletionModal(false)}
+                  className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all duration-200 flex items-center"
+                  disabled={completingTree}
+                >
+                  <X className="h-5 w-5 mr-2" />
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCompleteTree}
+                  disabled={completingTree}
+                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200 flex items-center shadow-sm hover:shadow-md"
+                >
+                  {completingTree ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Completing...
+                    </>
+                  ) : (
+                    <>
+                      <Trophy className="h-5 w-5 mr-2" />
+                      Complete Tree
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
       <style jsx>{`
         .scrollbar-thin::-webkit-scrollbar {
@@ -354,3 +472,5 @@ const RoadmapView: React.FC = () => {
 };
 
 export default RoadmapView;
+
+export default RoadmapView
