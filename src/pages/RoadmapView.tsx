@@ -472,5 +472,3 @@ const RoadmapView: React.FC = () => {
 };
 
 export default RoadmapView;
-
-export default RoadmapView
