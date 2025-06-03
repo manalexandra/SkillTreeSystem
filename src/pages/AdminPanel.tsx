@@ -294,7 +294,7 @@ const AdminPanel: React.FC = () => {
           .update({
             name: skillType.name,
             description: skillType.description,
-            level: skillType.level
+            type: skillType.type
           })
           .eq('id', skillType.id)
           .select()
@@ -311,7 +311,7 @@ const AdminPanel: React.FC = () => {
           .insert({
             name: skillType.name,
             description: skillType.description,
-            level: skillType.level,
+            type: skillType.type,
             created_by: user.id
           })
           .select()
@@ -569,7 +569,7 @@ const AdminPanel: React.FC = () => {
                       id="email"
                       value={newUserEmail}
                       onChange={(e) => setNewUserEmail(e.target.value)}
-                      className="w-full px-3  py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       placeholder="user@example.com"
                       required
                     />
