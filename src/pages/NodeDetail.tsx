@@ -62,11 +62,15 @@ const NodeDetail: React.FC = () => {
         const { data: commentsData, error: commentsError } = await supabase
           .from('node_comments')
           .select(`
-            *,
-            users:user_id (
+            id,
+            node_id,
+            user_id,
+            content,
+            created_at,
+            auth_users:user_id (
               id,
               email,
-              role
+              raw_user_meta_data->role
             )
           `)
           .eq('node_id', nodeId)
@@ -94,7 +98,11 @@ const NodeDetail: React.FC = () => {
           userId: comment.user_id,
           content: comment.content,
           createdAt: comment.created_at,
-          user: comment.users
+          user: {
+            id: comment.auth_users.id,
+            email: comment.auth_users.email,
+            role: comment.auth_users.role
+          }
         })) || []);
 
       } catch (err) {
@@ -144,11 +152,15 @@ const NodeDetail: React.FC = () => {
           content
         })
         .select(`
-          *,
-          users:user_id (
+          id,
+          node_id,
+          user_id,
+          content,
+          created_at,
+          auth_users:user_id (
             id,
             email,
-            role
+            raw_user_meta_data->role
           )
         `)
         .single();
@@ -161,7 +173,11 @@ const NodeDetail: React.FC = () => {
         userId: data.user_id,
         content: data.content,
         createdAt: data.created_at,
-        user: data.users
+        user: {
+          id: data.auth_users.id,
+          email: data.auth_users.email,
+          role: data.auth_users.role
+        }
       }, ...prev]);
     } catch (err) {
       setError("Failed to add comment");
