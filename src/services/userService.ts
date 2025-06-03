@@ -181,15 +181,10 @@ export const deleteUser = async (userId: string): Promise<void> => {
 // Add new user - with explicit public.users table insertion
 export const addUser = async (email: string, password: string, role: UserRole): Promise<void> => {
   try {
-    // First, create the auth user
+    // First, create the auth user without role metadata
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
-      password,
-      options: {
-        data: {
-          role: role
-        }
-      }
+      password
     });
 
     if (signUpError) {
@@ -201,7 +196,7 @@ export const addUser = async (email: string, password: string, role: UserRole): 
       throw new Error('No user returned from signup');
     }
 
-    // Then explicitly insert into public.users table
+    // Then explicitly insert into public.users table with role
     const { error: insertError } = await supabase
       .from('users')
       .insert({
