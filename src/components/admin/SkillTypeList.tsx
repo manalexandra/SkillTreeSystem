@@ -63,3 +63,5 @@ const SkillTypeList: React.FC<SkillTypeListProps> = ({
     </div>
   );
 }
+
+export default SkillTypeList;
