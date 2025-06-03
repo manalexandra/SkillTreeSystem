@@ -193,7 +193,7 @@ const RoadmapView: React.FC = () => {
               <h1 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
                 Your Learning Journey
               </h1>
-              <p className="mt-4 text-xl text-gray-500">
+              <p className="mt-4 text-xl text-gray-500 mb-4">
                 Track your progress and visualize your skill development path
               </p>
             </div>
@@ -203,7 +203,7 @@ const RoadmapView: React.FC = () => {
               {/* Horizontal line connecting all trees */}
               <div className="absolute top-20 left-0 right-0 h-1 bg-gradient-to-r from-primary-200 via-primary-300 to-primary-200 z-0"></div>
               
-              <div className="relative flex px-8 pt-4 pb-4">
+              <div className="relative flex px-8 mt-4 pt-4 pb-4">
                 {sortedTrees.map((tree, index) => {
                   const isActive = activeTreeId === tree.id;
                   const isExpanded = expandedTreeIds.includes(tree.id);
