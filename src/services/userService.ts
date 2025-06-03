@@ -77,9 +77,9 @@ export const isTreeCompleted = async (userId: string, treeId: string): Promise<b
     .select('tree_id')
     .eq('user_id', userId)
     .eq('tree_id', treeId)
-    .single();
+    .maybeSingle();
 
-  if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
+  if (error) {
     console.error('Error checking if tree is completed:', error);
     return false;
   }
