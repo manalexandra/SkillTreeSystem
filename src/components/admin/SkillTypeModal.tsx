@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Save } from 'lucide-react';
-import type { SkillType } from '../../types';
+import type { SkillType, SkillTypeCategory } from '../../types';
 
 interface SkillTypeModalProps {
   skillType?: SkillType;
@@ -8,6 +8,8 @@ interface SkillTypeModalProps {
   onSave: (skillType: Partial<SkillType>) => void;
   isLoading?: boolean;
 }
+
+const SKILL_TYPE_CATEGORIES: SkillTypeCategory[] = ['technical', 'soft_skill', 'leadership'];
 
 export default function SkillTypeModal({
   skillType,
@@ -17,7 +19,7 @@ export default function SkillTypeModal({
 }: SkillTypeModalProps) {
   const [name, setName] = useState(skillType?.name || '');
   const [description, setDescription] = useState(skillType?.description || '');
-  const [level, setLevel] = useState(skillType?.level || 1);
+  const [type, setType] = useState<SkillTypeCategory>(skillType?.type || 'technical');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +27,7 @@ export default function SkillTypeModal({
       id: skillType?.id,
       name,
       description,
-      level,
+      type,
     });
   };
 
@@ -76,18 +78,20 @@ export default function SkillTypeModal({
             </div>
 
             <div>
-              <label htmlFor="level" className="block text-sm font-medium text-gray-700 mb-1">
-                Level
+              <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">
+                Type
               </label>
               <select
-                id="level"
-                value={level}
-                onChange={(e) => setLevel(Number(e.target.value))}
+                id="type"
+                value={type}
+                onChange={(e) => setType(e.target.value as SkillTypeCategory)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               >
-                {[1, 2, 3, 4, 5].map((num) => (
-                  <option key={num} value={num}>
-                    Level {num}
+                {SKILL_TYPE_CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {category.split('_').map(word => 
+                      word.charAt(0).toUpperCase() + word.slice(1)
+                    ).join(' ')}
                   </option>
                 ))}
               </select>

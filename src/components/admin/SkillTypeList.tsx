@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit, Trash2, BookOpen, Star } from 'lucide-react';
+import { Edit, Trash2, BookOpen } from 'lucide-react';
 import type { SkillType } from '../../types';
 
 interface SkillTypeListProps {
@@ -25,6 +25,19 @@ const SkillTypeList: React.FC<SkillTypeListProps> = ({
     );
   }
 
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'technical':
+        return 'bg-blue-100 text-blue-800';
+      case 'soft_skill':
+        return 'bg-green-100 text-green-800';
+      case 'leadership':
+        return 'bg-purple-100 text-purple-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   return (
     <div className="overflow-hidden bg-white rounded-lg border border-gray-200">
       <ul className="divide-y divide-gray-200">
@@ -34,11 +47,11 @@ const SkillTypeList: React.FC<SkillTypeListProps> = ({
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-lg font-medium text-gray-900">{skillType.name}</h3>
-                  <div className="flex items-center gap-1 text-yellow-500">
-                    {Array.from({ length: skillType.level }).map((_, i) => (
-                      <Star key={i} className="h-4 w-4 fill-current" />
-                    ))}
-                  </div>
+                  <span className={`text-xs px-2 py-1 rounded-full ${getTypeColor(skillType.type)}`}>
+                    {skillType.type.split('_').map(word => 
+                      word.charAt(0).toUpperCase() + word.slice(1)
+                    ).join(' ')}
+                  </span>
                 </div>
                 {skillType.description && (
                   <p className="mt-1 text-gray-500">{skillType.description}</p>

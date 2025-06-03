@@ -21,11 +21,13 @@ export interface TeamMember {
   user?: User;
 }
 
+export type SkillTypeCategory = 'technical' | 'soft_skill' | 'leadership';
+
 export interface SkillType {
   id: string;
   name: string;
   description?: string;
-  level: number;
+  type: SkillTypeCategory;
   createdBy: string;
   createdAt: string;
 }
