@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { signOut } from '../../services/supabase';
-import { Menu, X, GitBranchPlus, LogOut, User, ChevronDown } from 'lucide-react';
+import { Menu, X, GitBranchPlus, LogOut, User, ChevronDown, Users } from 'lucide-react';
 
 const Navbar: React.FC = () => {
   const { user } = useAuth();
@@ -58,6 +58,13 @@ const Navbar: React.FC = () => {
                   >
                     Roadmap
                   </Link>
+                  <Link
+                    to="/people"
+                    className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  >
+                    <Users className="h-4 w-4 mr-1" />
+                    People
+                  </Link>
                   {user.role === 'manager' && (
                     <>
                       <Link
@@ -82,7 +89,7 @@ const Navbar: React.FC = () => {
           {/* User menu (desktop) */}
           <div className="hidden sm:ml-6 sm:flex sm:items-center">
             {user ? (
-              <div className="ml-3 relative\" ref={profileRef}>
+              <div className="ml-3 relative" ref={profileRef}>
                 <div>
                   <button
                     onClick={() => setIsProfileOpen(!isProfileOpen)}
@@ -171,14 +178,40 @@ const Navbar: React.FC = () => {
                 >
                   Dashboard
                 </Link>
+                <Link
+                  to="/roadmap"
+                  className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Roadmap
+                </Link>
+                <Link
+                  to="/people"
+                  className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <Users className="h-5 w-5 mr-2" />
+                    People
+                  </div>
+                </Link>
                 {user.role === 'manager' && (
-                  <Link
-                    to="/manage"
-                    className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Manage Trees
-                  </Link>
+                  <>
+                    <Link
+                      to="/manage"
+                      className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Manage Trees
+                    </Link>
+                    <Link
+                      to="/admin"
+                      className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Admin
+                    </Link>
+                  </>
                 )}
                 <div className="border-t border-gray-200 pt-4 pb-3">
                   <div className="flex items-center px-4">
