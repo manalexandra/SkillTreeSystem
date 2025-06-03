@@ -8,8 +8,8 @@ import {
   updateSkillNode,
   deleteSkillNode,
   updateUserProgress,
-  fetchUserSkillTrees
 } from '../services/supabase';
+import { fetchUserSkillTrees } from '../services/userService';
 import type { SkillTree, SkillNode } from '../types';
 
 interface CreateTreeData {
