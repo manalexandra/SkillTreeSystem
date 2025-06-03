@@ -37,7 +37,7 @@ export const getTeamMembers = async (teamId: string): Promise<TeamMember[]> => {
       team_id,
       user_id,
       joined_at,
-      users:user_id (
+      users (
         id,
         email,
         role
