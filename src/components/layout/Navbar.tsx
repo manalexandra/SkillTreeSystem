@@ -89,7 +89,7 @@ const Navbar: React.FC = () => {
           {/* User menu (desktop) */}
           <div className="hidden sm:ml-6 sm:flex sm:items-center">
             {user ? (
-              <div className="ml-3 relative" ref={profileRef}>
+              <div className="ml-3 relative\" ref={profileRef}>
                 <div>
                   <button
                     onClick={() => setIsProfileOpen(!isProfileOpen)}
