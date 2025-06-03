@@ -95,6 +95,9 @@ export default function SkillTypeModal({
                   </option>
                 ))}
               </select>
+              <p className="mt-1 text-xs text-gray-500">
+                Select the category that best describes this skill type
+              </p>
             </div>
           </div>
 
