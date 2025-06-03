@@ -6,17 +6,28 @@ import Navbar from '../components/layout/Navbar';
 import SkillTreeView from '../components/skill-tree/SkillTreeView';
 import SkillNodeForm from '../components/skill-tree/SkillNodeForm';
 import CreateTreeForm from '../components/skill-tree/CreateTreeForm';
-import { Plus, Edit, GitBranchPlus, TreeDeciduous, Search, ChevronRight, Users, Award } from 'lucide-react';
-import type { SkillNode as SkillNodeType } from '../types';
+import { Plus, Edit, GitBranchPlus, TreeDeciduous, Search, ChevronRight, Users, Award, CheckCircle } from 'lucide-react';
+import type { SkillNode as SkillNodeType, User } from '../types';
+import { fetchAllUsers } from '../services/userService';
+import { getUserProgress } from '../services/supabase';
+
+interface UserProgress {
+  user: User;
+  completedNodes: number;
+  totalNodes: number;
+}
 
 const ManageTrees: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
-  const { trees, fetchTrees } = useSkillTreeStore();
+  const { trees, nodes, fetchTrees } = useSkillTreeStore();
   const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
   const [showCreateTree, setShowCreateTree] = useState(false);
   const [showNodeForm, setShowNodeForm] = useState(false);
   const [editNode, setEditNode] = useState<SkillNodeType | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
+  const [assignedUsers, setAssignedUsers] = useState<User[]>([]);
+  const [userProgress, setUserProgress] = useState<UserProgress[]>([]);
+  const [loadingProgress, setLoadingProgress] = useState(false);
   const navigate = useNavigate();
 
   // Redirect if not authenticated or not a manager
@@ -40,6 +51,42 @@ const ManageTrees: React.FC = () => {
     }
   }, [trees, selectedTreeId]);
 
+  // Fetch assigned users and their progress when a tree is selected
+  useEffect(() => {
+    const loadUsersAndProgress = async () => {
+      if (!selectedTreeId) return;
+      
+      setLoadingProgress(true);
+      try {
+        // Get all users
+        const users = await fetchAllUsers();
+        setAssignedUsers(users);
+
+        // Get progress for each user
+        const progressPromises = users.map(async (user) => {
+          const progress = await getUserProgress(user.id, selectedTreeId);
+          const completedNodes = Object.values(progress).filter(Boolean).length;
+          const totalNodes = nodes.filter(n => n.treeId === selectedTreeId).length;
+          
+          return {
+            user,
+            completedNodes,
+            totalNodes
+          };
+        });
+
+        const allProgress = await Promise.all(progressPromises);
+        setUserProgress(allProgress);
+      } catch (error) {
+        console.error('Error loading users and progress:', error);
+      } finally {
+        setLoadingProgress(false);
+      }
+    };
+
+    loadUsersAndProgress();
+  }, [selectedTreeId, nodes]);
+
   const handleCreateTreeSuccess = (treeId: string) => {
     setSelectedTreeId(treeId);
   };
@@ -50,7 +97,7 @@ const ManageTrees: React.FC = () => {
   };
 
   const filteredTrees = trees.filter(tree =>
-    tree.name.toLowerCase().includes(searchTerm.toLowerCase())
+    tree.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -80,9 +127,9 @@ const ManageTrees: React.FC = () => {
             </div>
           </div>
           
-          <div className="flex flex-col md:flex-row md:items-start">
+          <div className="flex flex-col lg:flex-row lg:items-start">
             {/* Sidebar with tree selection */}
-            <div className="w-full md:w-80 p-6 border-b md:border-b-0 md:border-r border-gray-200">
+            <div className="w-full lg:w-80 p-6 border-b lg:border-b-0 lg:border-r border-gray-200">
               <div className="mb-4">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -131,12 +178,6 @@ const ManageTrees: React.FC = () => {
                           selectedTreeId === tree.id ? 'text-primary-500' : 'text-gray-400'
                         }`} />
                       </div>
-                      <div className="mt-2 flex items-center text-sm">
-                        <Users className="h-4 w-4 text-gray-400 mr-1" />
-                        <span className="text-gray-500">12 users</span>
-                        <Award className="h-4 w-4 text-gray-400 ml-3 mr-1" />
-                        <span className="text-gray-500">24 skills</span>
-                      </div>
                     </button>
                   ))
                 )}
@@ -146,26 +187,96 @@ const ManageTrees: React.FC = () => {
             {/* Main content area */}
             <div className="flex-grow p-6">
               {selectedTreeId ? (
-                <div>
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-semibold text-gray-900">Tree Structure</h3>
-                    <button
-                      onClick={() => {
-                        setEditNode(undefined);
-                        setShowNodeForm(true);
-                      }}
-                      className="flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Node
-                    </button>
+                <div className="space-y-8">
+                  {/* Tree Structure Section */}
+                  <div>
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-xl font-semibold text-gray-900">Tree Structure</h3>
+                      <button
+                        onClick={() => {
+                          setEditNode(undefined);
+                          setShowNodeForm(true);
+                        }}
+                        className="flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Node
+                      </button>
+                    </div>
+                    
+                    <SkillTreeView 
+                      treeId={selectedTreeId} 
+                      isEditable={true}
+                      onEditNode={handleEditNode}
+                    />
                   </div>
-                  
-                  <SkillTreeView 
-                    treeId={selectedTreeId} 
-                    isEditable={true}
-                    onEditNode={handleEditNode}
-                  />
+
+                  {/* User Progress Section */}
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+                      <Users className="h-5 w-5 mr-2 text-primary-600" />
+                      Assigned Users & Progress
+                    </h3>
+
+                    {loadingProgress ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
+                        <p className="text-gray-500 mt-2">Loading user progress...</p>
+                      </div>
+                    ) : userProgress.length > 0 ? (
+                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {userProgress.map(({ user, completedNodes, totalNodes }) => (
+                          <div key={user.id} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow">
+                            <div className="flex items-center mb-3">
+                              <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-medium">
+                                {user.email.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="ml-3">
+                                <div className="font-medium text-gray-900">{user.email}</div>
+                                <div className="text-sm text-gray-500 capitalize">{user.role}</div>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-gray-600">Progress</span>
+                                <span className="font-medium">
+                                  {completedNodes}/{totalNodes} nodes
+                                </span>
+                              </div>
+                              
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div
+                                  className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+                                  style={{ width: `${(completedNodes / totalNodes) * 100}%` }}
+                                />
+                              </div>
+                              
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-gray-500">
+                                  {Math.round((completedNodes / totalNodes) * 100)}% Complete
+                                </span>
+                                {completedNodes === totalNodes && (
+                                  <span className="flex items-center text-green-600">
+                                    <CheckCircle className="h-4 w-4 mr-1" />
+                                    Completed
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                        <Users className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                        <p className="text-gray-600 font-medium">No users assigned</p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Assign users to this skill tree to track their progress
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="bg-gray-50 rounded-2xl p-12 text-center border-2 border-dashed border-gray-200">
