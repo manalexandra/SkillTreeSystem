@@ -8,12 +8,13 @@ import NodeComments from "../components/node/NodeComments";
 import NodeProgress from "../components/node/NodeProgress";
 import type { SkillNode, NodeComment } from "../types";
 import { ArrowLeft, GitBranchPlus, Clock, CheckCircle, AlertTriangle, Loader2 } from "lucide-react";
+import { supabase } from "../services/supabase";
 
 const NodeDetail: React.FC = () => {
   const { nodeId } = useParams<{ nodeId: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { nodes, markNodeCompleted, userProgress } = useSkillTreeStore();
+  const { nodes, markNodeCompleted, userProgress, fetchTreeData } = useSkillTreeStore();
   const [node, setNode] = useState<SkillNode | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -27,47 +28,96 @@ const NodeDetail: React.FC = () => {
     const loadNodeData = async () => {
       setLoading(true);
       try {
-        // Find the node in all trees
-        const foundNode = nodes.find((n) => n.id === nodeId);
-        if (foundNode) {
-          setNode(foundNode);
-          setProgress(foundNode.progress || 0);
-          
-          // Load comments (mock data for now)
-          setComments([
-            {
-              id: "1",
-              nodeId: foundNode.id,
-              userId: "user1",
-              content: "Great progress on this skill!",
-              createdAt: new Date().toISOString(),
-              user: {
-                id: "user1",
-                email: "user@example.com",
-                role: "user"
-              }
-            }
-          ]);
-        }
+        // First get the node details
+        const { data: nodeData, error: nodeError } = await supabase
+          .from('skill_nodes')
+          .select(`
+            *,
+            skill_trees (
+              id,
+              name
+            )
+          `)
+          .eq('id', nodeId)
+          .single();
+
+        if (nodeError) throw nodeError;
+        if (!nodeData) throw new Error('Node not found');
+
+        // Fetch the tree data to ensure we have all context
+        await fetchTreeData(nodeData.tree_id, user.id);
+
+        // Get node progress
+        const { data: progressData } = await supabase
+          .from('node_progress')
+          .select('score')
+          .eq('node_id', nodeId)
+          .eq('user_id', user.id)
+          .single();
+
+        // Get comments
+        const { data: commentsData } = await supabase
+          .from('node_comments')
+          .select(`
+            *,
+            users (
+              id,
+              email,
+              role
+            )
+          `)
+          .eq('node_id', nodeId)
+          .order('created_at', { ascending: false });
+
+        setNode({
+          id: nodeData.id,
+          treeId: nodeData.tree_id,
+          parentId: nodeData.parent_id,
+          title: nodeData.title,
+          description: nodeData.description,
+          descriptionHtml: nodeData.description_html,
+          orderIndex: nodeData.order_index,
+          createdAt: nodeData.created_at,
+          progress: progressData?.score || 0,
+          completed: userProgress[nodeId] || false
+        });
+
+        setProgress(progressData?.score || 0);
+        setComments(commentsData?.map(comment => ({
+          id: comment.id,
+          nodeId: comment.node_id,
+          userId: comment.user_id,
+          content: comment.content,
+          createdAt: comment.created_at,
+          user: comment.users
+        })) || []);
+
       } catch (err) {
-        setError("Failed to load node data");
-        console.error(err);
+        console.error('Error loading node:', err);
+        setError('Failed to load node data');
       } finally {
         setLoading(false);
       }
     };
 
     loadNodeData();
-  }, [nodeId, nodes, user]);
+  }, [nodeId, user, fetchTreeData, userProgress]);
 
   const handleUpdateDescription = async (html: string) => {
     if (!node) return;
     
     setSaving(true);
     try {
-      // Update node description
-      setNode({ ...node, descriptionHtml: html });
-      // TODO: Save to backend
+      const { error } = await supabase
+        .from('skill_nodes')
+        .update({
+          description_html: html
+        })
+        .eq('id', node.id);
+
+      if (error) throw error;
+      
+      setNode(prev => prev ? { ...prev, descriptionHtml: html } : null);
     } catch (err) {
       setError("Failed to update description");
       console.error(err);
@@ -80,21 +130,33 @@ const NodeDetail: React.FC = () => {
     if (!node || !user) return;
     
     try {
-      const newComment: NodeComment = {
-        id: Math.random().toString(),
-        nodeId: node.id,
-        userId: user.id,
-        content,
-        createdAt: new Date().toISOString(),
-        user: {
-          id: user.id,
-          email: user.email,
-          role: user.role
-        }
-      };
+      const { data, error } = await supabase
+        .from('node_comments')
+        .insert({
+          node_id: node.id,
+          user_id: user.id,
+          content
+        })
+        .select(`
+          *,
+          users (
+            id,
+            email,
+            role
+          )
+        `)
+        .single();
+
+      if (error) throw error;
       
-      setComments([newComment, ...comments]);
-      // TODO: Save to backend
+      setComments(prev => [{
+        id: data.id,
+        nodeId: data.node_id,
+        userId: data.user_id,
+        content: data.content,
+        createdAt: data.created_at,
+        user: data.users
+      }, ...prev]);
     } catch (err) {
       setError("Failed to add comment");
       console.error(err);
@@ -105,8 +167,22 @@ const NodeDetail: React.FC = () => {
     if (!node || !user) return;
     
     try {
+      const { error } = await supabase
+        .from('node_progress')
+        .upsert({
+          node_id: node.id,
+          user_id: user.id,
+          score
+        });
+
+      if (error) throw error;
+      
       setProgress(score);
-      // TODO: Save to backend
+      
+      // If score is 10, mark as completed
+      if (score === 10) {
+        await markNodeCompleted(user.id, node.id, true);
+      }
     } catch (err) {
       setError("Failed to update progress");
       console.error(err);
@@ -234,21 +310,23 @@ const NodeDetail: React.FC = () => {
               {/* Related skills */}
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Related Skills</h3>
-                {node.children && node.children.length > 0 ? (
+                {nodes.filter(n => n.parentId === node.id).length > 0 ? (
                   <ul className="space-y-2">
-                    {node.children.map((child) => (
-                      <li key={child.id}>
-                        <Link
-                          to={`/node/${child.id}`}
-                          className="flex items-center p-2 hover:bg-gray-50 rounded-lg group"
-                        >
-                          <span className="flex-grow text-gray-700 group-hover:text-primary-600">
-                            {child.title}
-                          </span>
-                          <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-primary-500" />
-                        </Link>
-                      </li>
-                    ))}
+                    {nodes
+                      .filter(n => n.parentId === node.id)
+                      .map((child) => (
+                        <li key={child.id}>
+                          <Link
+                            to={`/node/${child.id}`}
+                            className="flex items-center p-2 hover:bg-gray-50 rounded-lg group"
+                          >
+                            <span className="flex-grow text-gray-700 group-hover:text-primary-600">
+                              {child.title}
+                            </span>
+                            <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-primary-500" />
+                          </Link>
+                        </li>
+                      ))}
                   </ul>
                 ) : (
                   <p className="text-gray-500 text-sm">No related skills found</p>
