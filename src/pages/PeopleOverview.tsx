@@ -4,7 +4,7 @@ import Navbar from '../components/layout/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { fetchAllUsers, getTeamMembers, getCompletedTrees } from '../services/userService';
 import { getAllUserProgress, supabase } from '../services/supabase';
-import { User, Team, CompletedTree } from '../types';
+import { User, Team, CompletedTree, SkillType } from '../types';
 import SkillBadge from '../components/skill-tree/SkillBadge';
 import { 
   Search, 
@@ -15,7 +15,8 @@ import {
   Award,
   Clock,
   GitBranchPlus,
-  CheckCircle
+  CheckCircle,
+  Trophy
 } from 'lucide-react';
 
 const PeopleOverview: React.FC = () => {
@@ -25,10 +26,12 @@ const PeopleOverview: React.FC = () => {
   const [teamMembers, setTeamMembers] = useState<Record<string, string[]>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTeam, setSelectedTeam] = useState<string>('all');
+  const [selectedBadge, setSelectedBadge] = useState<string>('all');
   const [userProgress, setUserProgress] = useState<Record<string, Record<string, boolean>>>({});
+  const [userBadges, setUserBadges] = useState<Record<string, CompletedTree[]>>({});
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
-  const [userBadges, setUserBadges] = useState<Record<string, CompletedTree[]>>({});
+  const [skillTypes, setSkillTypes] = useState<SkillType[]>([]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -46,6 +49,15 @@ const PeopleOverview: React.FC = () => {
         
         if (teamsError) throw teamsError;
         setTeams(teamsData || []);
+
+        // Load skill types
+        const { data: skillTypesData, error: skillTypesError } = await supabase
+          .from('skill_types')
+          .select('*')
+          .order('name');
+
+        if (skillTypesError) throw skillTypesError;
+        setSkillTypes(skillTypesData || []);
 
         // Load team members for each team
         const membersMap: Record<string, string[]> = {};
@@ -96,11 +108,20 @@ const PeopleOverview: React.FC = () => {
     };
   };
 
+  const getActiveFiltersCount = () => {
+    let count = 0;
+    if (selectedTeam !== 'all') count++;
+    if (selectedBadge !== 'all') count++;
+    return count;
+  };
+
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesTeam = selectedTeam === 'all' || 
       (teamMembers[selectedTeam] && teamMembers[selectedTeam].includes(user.id));
-    return matchesSearch && matchesTeam;
+    const matchesBadge = selectedBadge === 'all' ||
+      userBadges[user.id]?.some(badge => badge.skillTypeId === selectedBadge);
+    return matchesSearch && matchesTeam && matchesBadge;
   });
 
   return (
@@ -150,9 +171,9 @@ const PeopleOverview: React.FC = () => {
                 >
                   <Filter className="h-5 w-5 mr-2" />
                   Filters
-                  {selectedTeam !== 'all' && (
+                  {getActiveFiltersCount() > 0 && (
                     <span className="ml-2 bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full text-xs">
-                      1
+                      {getActiveFiltersCount()}
                     </span>
                   )}
                 </button>
@@ -178,6 +199,27 @@ const PeopleOverview: React.FC = () => {
                       {teams.map(team => (
                         <option key={team.id} value={team.id}>
                           {team.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <div className="flex items-center">
+                        <Trophy className="h-4 w-4 mr-1" />
+                        Earned Badge
+                      </div>
+                    </label>
+                    <select
+                      value={selectedBadge}
+                      onChange={(e) => setSelectedBadge(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    >
+                      <option value="all">All Badges</option>
+                      {skillTypes.map(type => (
+                        <option key={type.id} value={type.id}>
+                          {type.name}
                         </option>
                       ))}
                     </select>
