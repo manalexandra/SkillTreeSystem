@@ -16,7 +16,8 @@ import {
   ChevronRight,
   Trophy,
   Target,
-  XCircle
+  XCircle,
+  Star
 } from "lucide-react";
 import { supabase } from "../services/supabase";
 
@@ -190,7 +191,7 @@ const NodeDetail: React.FC = () => {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="bg-white rounded-xl shadow-sm mb-8 overflow-hidden">
-            <div className="p-6 pb-8">
+            <div className="p-6">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-3 mb-4">
@@ -225,37 +226,64 @@ const NodeDetail: React.FC = () => {
             </div>
 
             {/* Status Bar */}
-            <div className={`px-6 py-3 flex items-center justify-between ${
-              isCompleted ? 'bg-green-50' : 'bg-gray-50'
+            <div className={`p-4 ${
+              isCompleted 
+                ? 'bg-green-50 border-t border-green-100' 
+                : progress === 10 
+                  ? 'bg-yellow-50 border-t border-yellow-100'
+                  : 'bg-gray-50 border-t border-gray-100'
             }`}>
-              <div className="flex items-center">
-                {isCompleted ? (
-                  <>
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                    <span className="font-medium text-green-700">Completed</span>
-                  </>
-                ) : progress === 10 ? (
-                  <>
-                    <Trophy className="h-5 w-5 text-yellow-500 mr-2" />
-                    <span className="font-medium text-yellow-700">Ready to complete!</span>
-                  </>
-                ) : (
-                  <>
-                    <Target className="h-5 w-5 text-blue-500 mr-2" />
-                    <span className="font-medium text-blue-700">In Progress</span>
-                  </>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  {isCompleted ? (
+                    <>
+                      <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                        <CheckCircle className="h-6 w-6 text-green-600" />
+                      </div>
+                      <div className="ml-3">
+                        <div className="font-medium text-green-700">Completed!</div>
+                        <div className="text-sm text-green-600">
+                          You've mastered this skill
+                        </div>
+                      </div>
+                    </>
+                  ) : progress === 10 ? (
+                    <>
+                      <div className="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                        <Trophy className="h-6 w-6 text-yellow-600" />
+                      </div>
+                      <div className="ml-3">
+                        <div className="font-medium text-yellow-700">Ready to Complete!</div>
+                        <div className="text-sm text-yellow-600">
+                          You've reached maximum progress
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <Star className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div className="ml-3">
+                        <div className="font-medium text-blue-700">In Progress</div>
+                        <div className="text-sm text-blue-600">
+                          Keep going! {10 - progress} more points to complete
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+                
+                {progress === 10 && !isCompleted && (
+                  <button
+                    onClick={() => setShowCompletionModal(true)}
+                    className="px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors flex items-center shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200"
+                  >
+                    <Trophy className="h-5 w-5 mr-2" />
+                    Complete Skill
+                  </button>
                 )}
               </div>
-              
-              {progress === 10 && !isCompleted && (
-                <button
-                  onClick={() => setShowCompletionModal(true)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center"
-                >
-                  <Trophy className="h-4 w-4 mr-2" />
-                  Mark as Complete
-                </button>
-              )}
             </div>
           </div>
 
@@ -320,30 +348,31 @@ const NodeDetail: React.FC = () => {
       {/* Completion Modal */}
       {showCompletionModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-8 transform transition-all duration-200 scale-100">
             <div className="text-center">
-              <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Trophy className="h-8 w-8 text-yellow-600" />
+              <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Trophy className="h-10 w-10 text-yellow-600" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">
                 Ready to Complete!
               </h3>
-              <p className="text-gray-600 mb-6">
-                You've reached the maximum progress for this skill. Would you like to mark it as complete?
+              <p className="text-gray-600 mb-8">
+                Congratulations! You've mastered this skill and are ready to mark it as complete. 
+                This will be reflected in your progress tracking.
               </p>
-              <div className="flex justify-center space-x-3">
+              <div className="flex justify-center space-x-4">
                 <button
                   onClick={() => setShowCompletionModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors flex items-center"
+                  className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all duration-200 flex items-center"
                 >
-                  <XCircle className="h-4 w-4 mr-2" />
+                  <XCircle className="h-5 w-5 mr-2" />
                   Not Yet
                 </button>
                 <button
                   onClick={handleMarkAsComplete}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center"
+                  className="px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-all duration-200 flex items-center shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
                 >
-                  <CheckCircle className="h-4 w-4 mr-2" />
+                  <CheckCircle className="h-5 w-5 mr-2" />
                   Complete Skill
                 </button>
               </div>
