@@ -180,31 +180,40 @@ export const deleteUser = async (userId: string): Promise<void> => {
 
 // Add new user
 export const addUser = async (email: string, password: string, role: UserRole): Promise<void> => {
-  const { data, error: signUpError } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { role }
-    }
-  });
-  
-  if (signUpError) {
-    console.error('Error creating user:', signUpError);
-    throw signUpError;
-  }
-  
-  if (data.user) {
-    const { error: userError } = await supabase
+  try {
+    // First, create the auth user with role in metadata
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          role: role
+        }
+      }
+    });
+    
+    if (signUpError) throw signUpError;
+    if (!authData.user) throw new Error('No user returned from signup');
+    
+    // Then insert into public.users table
+    const { error: insertError } = await supabase
       .from('users')
       .insert({
-        id: data.user.id,
-        email,
-        role
+        id: authData.user.id,
+        email: email,
+        role: role,
+        first_name: null,
+        last_name: null,
+        image_url: null
       });
       
-    if (userError) {
-      console.error('Error adding user to users table:', userError);
-      throw userError;
+    if (insertError) {
+      // If inserting to public.users fails, clean up the auth user
+      await supabase.auth.admin.deleteUser(authData.user.id);
+      throw insertError;
     }
+  } catch (error) {
+    console.error('Error in addUser:', error);
+    throw error;
   }
 };
