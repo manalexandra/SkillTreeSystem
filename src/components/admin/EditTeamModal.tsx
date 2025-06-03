@@ -1,12 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Team, User } from '../../types';
-import { X, Save, Users, Search } from 'lucide-react';
+import { X, Save, Users } from 'lucide-react';
+import Select, { MultiValue } from 'react-select';
+import { getTeamMembers } from '../../services/userService';
 
 interface EditTeamModalProps {
   team: Team;
   users: User[];
   onClose: () => void;
   onSave: (team: Team, selectedUsers: string[]) => void;
+}
+
+interface UserOption {
+  value: string;
+  label: string;
+  email: string;
+  role: string;
 }
 
 const EditTeamModal: React.FC<EditTeamModalProps> = ({
@@ -17,24 +26,91 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
 }) => {
   const [editedTeam, setEditedTeam] = useState<Team>(team);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const filteredUsers = users.filter(u =>
-    u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.role.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Convert users to options format
+  const userOptions: UserOption[] = users.map(user => ({
+    value: user.id,
+    label: user.email,
+    email: user.email,
+    role: user.role
+  }));
+
+  // Fetch current team members when modal opens
+  useEffect(() => {
+    const loadTeamMembers = async () => {
+      if (team.id) {
+        try {
+          const members = await getTeamMembers(team.id);
+          setSelectedUsers(members.map(member => member.userId));
+        } catch (error) {
+          console.error('Error loading team members:', error);
+        }
+      }
+      setLoading(false);
+    };
+
+    loadTeamMembers();
+  }, [team.id]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(editedTeam, selectedUsers);
   };
 
+  const handleUserChange = (newValue: MultiValue<UserOption>) => {
+    setSelectedUsers(newValue.map(option => option.value));
+  };
+
+  // Custom styles for react-select
+  const customStyles = {
+    control: (base: any) => ({
+      ...base,
+      borderColor: '#E5E7EB',
+      '&:hover': {
+        borderColor: '#E5E7EB'
+      },
+      boxShadow: 'none',
+      '&:focus-within': {
+        borderColor: '#3B82F6',
+        boxShadow: '0 0 0 2px rgba(59, 130, 246, 0.25)'
+      }
+    }),
+    option: (base: any, state: { isSelected: boolean; isFocused: boolean }) => ({
+      ...base,
+      backgroundColor: state.isSelected 
+        ? '#3B82F6' 
+        : state.isFocused 
+          ? '#F3F4F6' 
+          : undefined,
+      '&:active': {
+        backgroundColor: state.isSelected ? '#2563EB' : '#E5E7EB'
+      }
+    })
+  };
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden">
+          <div className="p-6">
+            <div className="flex justify-center items-center h-32">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden">
         <div className="p-6 bg-gradient-to-r from-primary-600 to-primary-700">
           <div className="flex justify-between items-center">
-            <h3 className="text-xl font-semibold text-white">Edit Team</h3>
+            <h3 className="text-xl font-semibold text-white">
+              {team.id ? 'Edit Team' : 'Create Team'}
+            </h3>
             <button
               onClick={onClose}
               className="text-white/80 hover:text-white transition-colors"
@@ -81,48 +157,27 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({
                 </div>
               </label>
 
-              <div className="relative mb-2">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search users..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
-              </div>
-
-              <div className="border border-gray-200 rounded-lg max-h-48 overflow-y-auto">
-                {filteredUsers.map(user => (
-                  <label
-                    key={user.id}
-                    className="flex items-center px-4 py-2 hover:bg-gray-50 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedUsers.includes(user.id)}
-                      onChange={(e) => {
-                        setSelectedUsers(prev =>
-                          e.target.checked
-                            ? [...prev, user.id]
-                            : prev.filter(id => id !== user.id)
-                        );
-                      }}
-                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                    />
-                    <div className="ml-3">
-                      <div className="text-sm font-medium text-gray-900">{user.email}</div>
-                      <div className="text-xs text-gray-500">{user.role}</div>
-                    </div>
-                  </label>
-                ))}
-
-                {filteredUsers.length === 0 && (
-                  <div className="px-4 py-3 text-sm text-gray-500 text-center">
-                    No users found
+              <Select
+                isMulti
+                options={userOptions}
+                value={userOptions.filter(option => selectedUsers.includes(option.value))}
+                onChange={handleUserChange}
+                styles={customStyles}
+                formatOptionLabel={({ email, role }) => (
+                  <div className="flex justify-between items-center">
+                    <span>{email}</span>
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      role === 'manager' 
+                        ? 'bg-purple-100 text-purple-800' 
+                        : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {role}
+                    </span>
                   </div>
                 )}
-              </div>
+                placeholder="Select team members..."
+                className="mt-1"
+              />
             </div>
           </div>
 
