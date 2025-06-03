@@ -9,6 +9,7 @@ import NodeProgress from "../components/node/NodeProgress";
 import type { SkillNode, NodeComment } from "../types";
 import { ArrowLeft, GitBranchPlus, Clock, CheckCircle, AlertTriangle, Loader2, ChevronRight } from "lucide-react";
 import { supabase } from "../services/supabase";
+import { fetchUsersByIds } from "../services/userService";
 
 const NodeDetail: React.FC = () => {
   const { nodeId } = useParams<{ nodeId: string }>();
@@ -61,22 +62,18 @@ const NodeDetail: React.FC = () => {
         setLoadingComments(true);
         const { data: commentsData, error: commentsError } = await supabase
           .from('node_comments')
-          .select(`
-            id,
-            node_id,
-            user_id,
-            content,
-            created_at,
-            auth_users:user_id (
-              id,
-              email,
-              raw_user_meta_data->role
-            )
-          `)
+          .select('id, node_id, user_id, content, created_at')
           .eq('node_id', nodeId)
           .order('created_at', { ascending: false });
 
         if (commentsError) throw commentsError;
+        if (!commentsData) throw new Error('Failed to load comments');
+
+        // Get unique user IDs from comments
+        const userIds = [...new Set(commentsData.map(comment => comment.user_id))];
+        
+        // Fetch user details for all comment authors
+        const userMap = await fetchUsersByIds(userIds);
 
         setNode({
           id: nodeData.id,
@@ -92,18 +89,18 @@ const NodeDetail: React.FC = () => {
         });
 
         setProgress(progressData?.score || 0);
-        setComments(commentsData?.map(comment => ({
+        setComments(commentsData.map(comment => ({
           id: comment.id,
           nodeId: comment.node_id,
           userId: comment.user_id,
           content: comment.content,
           createdAt: comment.created_at,
-          user: {
-            id: comment.auth_users.id,
-            email: comment.auth_users.email,
-            role: comment.auth_users.role
+          user: userMap.get(comment.user_id) || {
+            id: comment.user_id,
+            email: 'Unknown User',
+            role: 'user'
           }
-        })) || []);
+        })));
 
       } catch (err) {
         console.error('Error loading node:', err);
@@ -151,18 +148,7 @@ const NodeDetail: React.FC = () => {
           user_id: user.id,
           content
         })
-        .select(`
-          id,
-          node_id,
-          user_id,
-          content,
-          created_at,
-          auth_users:user_id (
-            id,
-            email,
-            raw_user_meta_data->role
-          )
-        `)
+        .select('id, node_id, user_id, content, created_at')
         .single();
 
       if (error) throw error;
@@ -174,9 +160,9 @@ const NodeDetail: React.FC = () => {
         content: data.content,
         createdAt: data.created_at,
         user: {
-          id: data.auth_users.id,
-          email: data.auth_users.email,
-          role: data.auth_users.role
+          id: user.id,
+          email: user.email,
+          role: user.role
         }
       }, ...prev]);
     } catch (err) {
