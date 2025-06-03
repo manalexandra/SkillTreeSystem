@@ -126,11 +126,12 @@ export const useSkillTreeStore = create<SkillTreeState>((set, get) => ({
   createNewTree: async (data: CreateTreeData) => {
     set({ loading: true, error: null });
     try {
-      const newTree = await createSkillTree({
-        name: data.name,
-        createdBy: data.createdBy,
-        assignedUsers: data.assignedUsers
-      });
+      // Fix: Pass arguments separately instead of as an object
+      const newTree = await createSkillTree(
+        data.name,
+        data.createdBy,
+        data.assignedUsers
+      );
       
       if (newTree) {
         set((state) => ({
