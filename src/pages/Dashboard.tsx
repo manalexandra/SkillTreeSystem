@@ -6,53 +6,22 @@ import SkillTreeView from '../components/skill-tree/SkillTreeView';
 import Navbar from '../components/layout/Navbar';
 import { 
   GitBranchPlus, 
-  TreeDeciduous, 
-  Award, 
-  Users, 
-  Target, 
+  TreeDeciduous,
+  Target,
   ChevronRight,
-  BarChart,
+  Award,
   Clock,
-  CheckCircle
+  CheckCircle,
+  Zap,
+  BookOpen
 } from 'lucide-react';
-
-import { fetchUserCount, fetchSkillTreeCount } from '../services/dashboardService';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { trees, fetchTrees, nodes } = useSkillTreeStore();
   const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
   const navigate = useNavigate();
-
-  // Dashboard metrics state
-  const [userCount, setUserCount] = useState<number | null>(null);
-  const [treeCount, setTreeCount] = useState<number | null>(null);
-  const [metricsLoading, setMetricsLoading] = useState(true);
-
-  // Animation states
   const [showContent, setShowContent] = useState(false);
-
-  // Fetch dashboard metrics
-  useEffect(() => {
-    let mounted = true;
-    setMetricsLoading(true);
-    Promise.all([fetchUserCount(), fetchSkillTreeCount()])
-      .then(([users, trees]) => {
-        if (mounted) {
-          setUserCount(users);
-          setTreeCount(trees);
-        }
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (mounted) {
-          setMetricsLoading(false);
-          // Trigger animation after data loads
-          setTimeout(() => setShowContent(true), 100);
-        }
-      });
-    return () => { mounted = false; };
-  }, []);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -65,6 +34,8 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     if (user) {
       fetchTrees();
+      // Trigger animation after component mounts
+      setTimeout(() => setShowContent(true), 100);
     }
   }, [fetchTrees, user]);
 
@@ -83,6 +54,21 @@ const Dashboard: React.FC = () => {
     return Math.round((completedNodes / treeNodes.length) * 100);
   };
 
+  // Get total completed skills across all trees
+  const getTotalCompletedSkills = () => {
+    return nodes.filter(node => node.completed).length;
+  };
+
+  // Get total skills in progress (started but not completed)
+  const getSkillsInProgress = () => {
+    return nodes.filter(node => node.progress && node.progress > 0 && !node.completed).length;
+  };
+
+  // Get the next recommended skill
+  const getNextSkill = () => {
+    return nodes.find(node => !node.completed && (!node.progress || node.progress < 100));
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
       <Navbar />
@@ -92,71 +78,80 @@ const Dashboard: React.FC = () => {
         <div className={`mb-8 transition-all duration-500 transform ${
           showContent ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
         }`}>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Welcome back, {user?.email}!
-          </h1>
-          <p className="text-gray-600">
-            Track your progress and continue your learning journey
-          </p>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center">
+              <span className="text-xl font-bold text-primary-600">
+                {user?.email.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Welcome back!
+              </h1>
+              <p className="text-gray-600">
+                Continue your learning journey
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Metrics Grid */}
+        {/* Progress Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Active Trees */}
+          {/* Skills Mastered */}
           <div className={`bg-white rounded-xl shadow-sm border border-gray-100 p-6 transition-all duration-500 transform ${
             showContent ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
           }`} style={{ transitionDelay: '100ms' }}>
             <div className="flex items-center justify-between mb-4">
+              <div className="bg-success-100 p-3 rounded-lg">
+                <Award className="h-6 w-6 text-success-600" />
+              </div>
+              <span className="text-sm font-medium text-success-600 bg-success-50 px-3 py-1 rounded-full">
+                Mastered
+              </span>
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-1">
+              {getTotalCompletedSkills()}
+            </h3>
+            <p className="text-gray-600">Skills Mastered</p>
+          </div>
+
+          {/* Skills in Progress */}
+          <div className={`bg-white rounded-xl shadow-sm border border-gray-100 p-6 transition-all duration-500 transform ${
+            showContent ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
+          }`} style={{ transitionDelay: '200ms' }}>
+            <div className="flex items-center justify-between mb-4">
               <div className="bg-primary-100 p-3 rounded-lg">
-                <GitBranchPlus className="h-6 w-6 text-primary-600" />
+                <Zap className="h-6 w-6 text-primary-600" />
               </div>
               <span className="text-sm font-medium text-primary-600 bg-primary-50 px-3 py-1 rounded-full">
                 Active
               </span>
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-1">
-              {metricsLoading ? '-' : treeCount}
+              {getSkillsInProgress()}
             </h3>
-            <p className="text-gray-600">Active Skill Trees</p>
+            <p className="text-gray-600">Skills in Progress</p>
           </div>
 
-          {/* Total Users */}
-          <div className={`bg-white rounded-xl shadow-sm border border-gray-100 p-6 transition-all duration-500 transform ${
-            showContent ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
-          }`} style={{ transitionDelay: '200ms' }}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-secondary-100 p-3 rounded-lg">
-                <Users className="h-6 w-6 text-secondary-600" />
-              </div>
-              <span className="text-sm font-medium text-secondary-600 bg-secondary-50 px-3 py-1 rounded-full">
-                Community
-              </span>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-1">
-              {metricsLoading ? '-' : userCount}
-            </h3>
-            <p className="text-gray-600">Total Users</p>
-          </div>
-
-          {/* Completed Skills */}
+          {/* Learning Paths */}
           <div className={`bg-white rounded-xl shadow-sm border border-gray-100 p-6 transition-all duration-500 transform ${
             showContent ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
           }`} style={{ transitionDelay: '300ms' }}>
             <div className="flex items-center justify-between mb-4">
-              <div className="bg-success-100 p-3 rounded-lg">
-                <CheckCircle className="h-6 w-6 text-success-600" />
+              <div className="bg-secondary-100 p-3 rounded-lg">
+                <GitBranchPlus className="h-6 w-6 text-secondary-600" />
               </div>
-              <span className="text-sm font-medium text-success-600 bg-success-50 px-3 py-1 rounded-full">
-                Progress
+              <span className="text-sm font-medium text-secondary-600 bg-secondary-50 px-3 py-1 rounded-full">
+                Paths
               </span>
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-1">
-              {nodes.filter(n => n.completed).length}
+              {trees.length}
             </h3>
-            <p className="text-gray-600">Completed Skills</p>
+            <p className="text-gray-600">Learning Paths</p>
           </div>
 
-          {/* Time Tracking */}
+          {/* Study Time */}
           <div className={`bg-white rounded-xl shadow-sm border border-gray-100 p-6 transition-all duration-500 transform ${
             showContent ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
           }`} style={{ transitionDelay: '400ms' }}>
@@ -169,11 +164,42 @@ const Dashboard: React.FC = () => {
               </span>
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-1">
-              {trees.length * 2}h
+              {getTotalCompletedSkills() * 2}h
             </h3>
-            <p className="text-gray-600">Learning Time</p>
+            <p className="text-gray-600">Study Time</p>
           </div>
         </div>
+
+        {/* Next Up Section */}
+        {getNextSkill() && (
+          <div className={`mb-8 transition-all duration-500 transform ${
+            showContent ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
+          }`} style={{ transitionDelay: '500ms' }}>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+                  <BookOpen className="h-5 w-5 text-primary-600 mr-2" />
+                  Next Up
+                </h2>
+                <Link
+                  to={`/node/${getNextSkill()?.id}`}
+                  className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center"
+                >
+                  Start Learning
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Link>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="font-medium text-gray-900 mb-2">
+                  {getNextSkill()?.title}
+                </h3>
+                <p className="text-gray-600 text-sm line-clamp-2">
+                  {getNextSkill()?.description}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Main Content Grid */}
         <div className="grid lg:grid-cols-3 gap-8">
@@ -181,11 +207,11 @@ const Dashboard: React.FC = () => {
           <div className="lg:col-span-1">
             <div className={`bg-white rounded-xl shadow-sm border border-gray-100 transition-all duration-500 transform ${
               showContent ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
-            }`} style={{ transitionDelay: '500ms' }}>
+            }`} style={{ transitionDelay: '600ms' }}>
               <div className="p-6 border-b border-gray-100">
                 <h2 className="text-lg font-semibold text-gray-900 flex items-center">
                   <GitBranchPlus className="h-5 w-5 text-primary-600 mr-2" />
-                  Your Skill Trees
+                  Your Learning Paths
                 </h2>
               </div>
 
@@ -193,11 +219,9 @@ const Dashboard: React.FC = () => {
                 {trees.length === 0 ? (
                   <div className="text-center py-8">
                     <TreeDeciduous className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-gray-600 font-medium">No trees available</p>
+                    <p className="text-gray-600 font-medium">No paths available</p>
                     <p className="text-sm text-gray-500 mt-1">
-                      {user?.role === 'manager' 
-                        ? 'Create your first skill tree!'
-                        : 'No skill trees assigned yet.'}
+                      You haven't been assigned any learning paths yet
                     </p>
                   </div>
                 ) : (
@@ -252,19 +276,17 @@ const Dashboard: React.FC = () => {
           <div className="lg:col-span-2">
             <div className={`bg-white rounded-xl shadow-sm border border-gray-100 p-6 transition-all duration-500 transform ${
               showContent ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
-            }`} style={{ transitionDelay: '600ms' }}>
+            }`} style={{ transitionDelay: '700ms' }}>
               {selectedTreeId ? (
                 <SkillTreeView treeId={selectedTreeId} />
               ) : (
                 <div className="text-center py-12">
                   <GitBranchPlus className="h-16 w-16 text-gray-300 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    No Skill Tree Selected
+                    Select a Learning Path
                   </h3>
                   <p className="text-gray-600">
-                    {trees.length > 0
-                      ? 'Select a skill tree from the sidebar to view details'
-                      : 'No skill trees available yet'}
+                    Choose a learning path from the sidebar to view your progress
                   </p>
                 </div>
               )}
