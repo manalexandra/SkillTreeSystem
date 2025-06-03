@@ -9,6 +9,8 @@ import ManageTrees from './pages/ManageTrees';
 import NodeDetail from './pages/NodeDetail';
 import RoadmapView from "./pages/RoadmapView";
 import AdminPanel from "./pages/AdminPanel";
+import PeopleOverview from './pages/PeopleOverview';
+import PersonDetail from './pages/PersonDetail';
 
 function App() {
   return (
@@ -21,13 +23,13 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/manage" element={<ManageTrees />} />
           <Route path="/node/:nodeId" element={<NodeDetail />} />
-        <Route path="/roadmap" element={<RoadmapView />} />
-        <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/roadmap" element={<RoadmapView />} />
+          <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/people" element={<PeopleOverview />} />
+          <Route path="/people/:userId" element={<PersonDetail />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
    </AuthProvider>
   );
 }
-
-export default App;
