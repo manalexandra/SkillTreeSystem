@@ -4,12 +4,10 @@ import { useSkillTreeStore } from "../stores/skillTreeStore";
 import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/layout/Navbar";
 import NodeDescriptionEditor from "../components/node/NodeDescriptionEditor";
-import NodeComments from "../components/node/NodeComments";
 import NodeProgress from "../components/node/NodeProgress";
-import type { SkillNode, NodeComment } from "../types";
+import type { SkillNode } from "../types";
 import { ArrowLeft, GitBranchPlus, Clock, CheckCircle, AlertTriangle, Loader2, ChevronRight } from "lucide-react";
 import { supabase } from "../services/supabase";
-import { fetchUsersByIds } from "../services/userService";
 
 const NodeDetail: React.FC = () => {
   const { nodeId } = useParams<{ nodeId: string }>();
@@ -20,9 +18,7 @@ const NodeDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [comments, setComments] = useState<NodeComment[]>([]);
   const [progress, setProgress] = useState(0);
-  const [loadingComments, setLoadingComments] = useState(false);
 
   useEffect(() => {
     if (!user || !nodeId) return;
@@ -58,23 +54,6 @@ const NodeDetail: React.FC = () => {
           .eq('user_id', user.id)
           .maybeSingle();
 
-        // Load comments
-        setLoadingComments(true);
-        const { data: commentsData, error: commentsError } = await supabase
-          .from('node_comments')
-          .select('id, node_id, user_id, content, created_at')
-          .eq('node_id', nodeId)
-          .order('created_at', { ascending: false });
-
-        if (commentsError) throw commentsError;
-        if (!commentsData) throw new Error('Failed to load comments');
-
-        // Get unique user IDs from comments
-        const userIds = [...new Set(commentsData.map(comment => comment.user_id))];
-        
-        // Fetch user details for all comment authors
-        const userMap = await fetchUsersByIds(userIds);
-
         setNode({
           id: nodeData.id,
           treeId: nodeData.tree_id,
@@ -89,25 +68,11 @@ const NodeDetail: React.FC = () => {
         });
 
         setProgress(progressData?.score || 0);
-        setComments(commentsData.map(comment => ({
-          id: comment.id,
-          nodeId: comment.node_id,
-          userId: comment.user_id,
-          content: comment.content,
-          createdAt: comment.created_at,
-          user: userMap.get(comment.user_id) || {
-            id: comment.user_id,
-            email: 'Unknown User',
-            role: 'user'
-          }
-        })));
-
       } catch (err) {
         console.error('Error loading node:', err);
         setError('Failed to load node data');
       } finally {
         setLoading(false);
-        setLoadingComments(false);
       }
     };
 
@@ -134,40 +99,6 @@ const NodeDetail: React.FC = () => {
       console.error(err);
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleAddComment = async (content: string) => {
-    if (!node || !user) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('node_comments')
-        .insert({
-          node_id: node.id,
-          user_id: user.id,
-          content
-        })
-        .select('id, node_id, user_id, content, created_at')
-        .single();
-
-      if (error) throw error;
-      
-      setComments(prev => [{
-        id: data.id,
-        nodeId: data.node_id,
-        userId: data.user_id,
-        content: data.content,
-        createdAt: data.created_at,
-        user: {
-          id: user.id,
-          email: user.email,
-          role: user.role
-        }
-      }, ...prev]);
-    } catch (err) {
-      setError("Failed to add comment");
-      console.error(err);
     }
   };
 
@@ -281,7 +212,7 @@ const NodeDetail: React.FC = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main content */}
-            <div className="lg:col-span-2 space-y-8">
+            <div className="lg:col-span-2">
               {/* Description */}
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Description</h2>
@@ -292,20 +223,6 @@ const NodeDetail: React.FC = () => {
                 />
                 {saving && (
                   <p className="text-sm text-gray-500 mt-2">Saving changes...</p>
-                )}
-              </div>
-
-              {/* Comments */}
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                {loadingComments ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-8 w-8 text-primary-600 animate-spin" />
-                  </div>
-                ) : (
-                  <NodeComments
-                    comments={comments}
-                    onAddComment={handleAddComment}
-                  />
                 )}
               </div>
             </div>
