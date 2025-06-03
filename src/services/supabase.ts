@@ -2,9 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import type { User, SkillTree, SkillNode, UserProgress } from '../types';
 
 // Initialize Supabase client
-// Replace these with your actual Supabase URL and anon key
-const supabaseUrl = "https://jdipoqxnmhfyiqycglnt.supabase.co";
-const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpkaXBvcXhubWhmeWlxeWNnbG50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgzNzc0MjEsImV4cCI6MjA2Mzk1MzQyMX0.HdDT9aT_FEmsYhZsluLtCn-Cm4qLOJEWm2t1KgZQy2M";
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -25,10 +24,7 @@ export const signUp = async (email: string, password: string, role: 'manager' | 
 
 export const signIn = async (email: string, password: string) => {
   const timeout = new Promise((_, reject) =>
-    setTimeout(() => {
-      console.error('[supabase.ts] signInWithPassword timeout after 5s');
-      reject(new Error('signInWithPassword timeout'));
-    }, 5000)
+    setTimeout(() => reject(new Error('signInWithPassword timeout')), 5000)
   );
   try {
     const result = await Promise.race([
@@ -60,30 +56,66 @@ export const getCurrentUser = async (): Promise<User | null> => {
 };
 
 // Skill Tree functions
-export const createSkillTree = async (name: string, userId: string): Promise<SkillTree | null> => {
-  const { data, error } = await supabase
+export const createSkillTree = async (
+  name: string, 
+  createdBy: string,
+  assignedUsers: string[] = []
+): Promise<SkillTree | null> => {
+  // Start a transaction
+  const { data: tree, error: treeError } = await supabase
     .from('skill_trees')
-    .insert([{ name, created_by: userId }])
+    .insert([{ name, created_by: createdBy }])
     .select()
     .single();
   
-  if (error) {
-    console.error('Error creating skill tree:', error);
+  if (treeError || !tree) {
+    console.error('Error creating skill tree:', treeError);
     return null;
+  }
+
+  // Assign users if any
+  if (assignedUsers.length > 0) {
+    const assignments = assignedUsers.map(userId => ({
+      user_id: userId,
+      tree_id: tree.id,
+      assigned_by: createdBy
+    }));
+
+    const { error: assignError } = await supabase
+      .from('user_skill_trees')
+      .insert(assignments);
+
+    if (assignError) {
+      console.error('Error assigning users:', assignError);
+      // Note: Tree is still created even if assignments fail
+    }
   }
   
   return {
-    id: data.id,
-    name: data.name,
-    createdBy: data.created_by,
-    createdAt: data.created_at,
+    id: tree.id,
+    name: tree.name,
+    createdBy: tree.created_by,
+    createdAt: tree.created_at,
   };
 };
 
-export const getSkillTrees = async (): Promise<SkillTree[]> => {
-  const { data, error } = await supabase
+export const getSkillTrees = async (userId?: string): Promise<SkillTree[]> => {
+  let query = supabase
     .from('skill_trees')
-    .select('*');
+    .select(`
+      *,
+      user_skill_trees!inner (
+        user_id,
+        assigned_at,
+        assigned_by
+      )
+    `);
+
+  if (userId) {
+    query = query.eq('user_skill_trees.user_id', userId);
+  }
+
+  const { data, error } = await query;
   
   if (error) {
     console.error('Error fetching skill trees:', error);
@@ -269,62 +301,4 @@ export const updateUserProgress = async (
   }
   
   return {
-    userId: data.user_id,
-    nodeId: data.node_id,
-    completed: data.completed,
-    completedAt: data.completed_at,
-  };
-};
-
-export const getAllUserProgress = async (userId: string): Promise<Record<string, boolean>> => {
-  const { data, error } = await supabase
-    .from('user_node_progress')
-    .select('node_id, completed')
-    .eq('user_id', userId);
-
-  if (error) {
-    console.error('Error fetching all user progress:', error);
-    return {};
-  }
-
-  const progressMap: Record<string, boolean> = {};
-  data.forEach((item) => {
-    progressMap[item.node_id] = item.completed;
-  });
-
-  return progressMap;
-};
-
-export const getUserProgress = async (userId: string, treeId: string): Promise<Record<string, boolean>> => {
-  // Step 1: Get the node IDs for the tree
-  const { data: nodeData, error: nodeError } = await supabase
-    .from('skill_nodes')
-    .select('id')
-    .eq('tree_id', treeId);
-
-  if (nodeError) {
-    console.error('Error fetching skill nodes:', nodeError);
-    return {};
-  }
-
-  const nodeIds = nodeData?.map((node) => node.id) || [];
-
-  // Step 2: Get the user progress for those node IDs
-  const { data, error } = await supabase
-    .from('user_node_progress')
-    .select('node_id, completed')
-    .eq('user_id', userId)
-    .in('node_id', nodeIds);
-
-  if (error) {
-    console.error('Error fetching user progress:', error);
-    return {};
-  }
-
-  const progressMap: Record<string, boolean> = {};
-  data.forEach((item) => {
-    progressMap[item.node_id] = item.completed;
-  });
-
-  return progressMap;
-};
+    userId: data.user_i

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSkillTreeStore } from '../../stores/skillTreeStore';
 import { useAuth } from '../../context/AuthContext';
 import { fetchAllUsers } from '../../services/userService';
-import { X } from 'lucide-react';
+import { X, Users, Search } from 'lucide-react';
 import type { User } from '../../types';
 
 interface CreateTreeFormProps {
@@ -15,7 +15,10 @@ const CreateTreeForm: React.FC<CreateTreeFormProps> = ({ onClose, onSuccess }) =
   const [description, setDescription] = useState('');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const { createNewTree, loading } = useSkillTreeStore();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { createNewTree } = useSkillTreeStore();
   const { user } = useAuth();
 
   useEffect(() => {
@@ -30,18 +33,32 @@ const CreateTreeForm: React.FC<CreateTreeFormProps> = ({ onClose, onSuccess }) =
     e.preventDefault();
     if (!user) return;
     
-    const newTree = await createNewTree({
-      name,
-      description,
-      createdBy: user.id,
-      assignedUsers: selectedUsers
-    });
+    setLoading(true);
+    setError(null);
     
-    if (newTree && onSuccess) {
-      onSuccess(newTree.id);
+    try {
+      const newTree = await createNewTree({
+        name,
+        description,
+        createdBy: user.id,
+        assignedUsers: selectedUsers
+      });
+      
+      if (newTree && onSuccess) {
+        onSuccess(newTree.id);
+      }
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create tree');
+    } finally {
+      setLoading(false);
     }
-    onClose();
   };
+
+  const filteredUsers = users.filter(u =>
+    u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    u.role.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-50 p-4">
@@ -57,6 +74,12 @@ const CreateTreeForm: React.FC<CreateTreeFormProps> = ({ onClose, onSuccess }) =
         </div>
         
         <form onSubmit={handleSubmit} className="p-4">
+          {error && (
+            <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+              {error}
+            </div>
+          )}
+
           <div className="mb-4">
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
               Skill Tree Name
@@ -87,32 +110,54 @@ const CreateTreeForm: React.FC<CreateTreeFormProps> = ({ onClose, onSuccess }) =
           </div>
           
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Assign to Users
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Assign to Users
+              </div>
             </label>
+
+            <div className="relative mb-2">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search users..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+
             <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md">
-              {users.map(u => (
-                <label
-                  key={u.id}
-                  className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedUsers.includes(u.id)}
-                    onChange={(e) => {
-                      setSelectedUsers(prev =>
-                        e.target.checked
-                          ? [...prev, u.id]
-                          : prev.filter(id => id !== u.id)
-                      );
-                    }}
-                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">
-                    {u.email} ({u.role})
-                  </span>
-                </label>
-              ))}
+              {filteredUsers.length > 0 ? (
+                filteredUsers.map(u => (
+                  <label
+                    key={u.id}
+                    className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedUsers.includes(u.id)}
+                      onChange={(e) => {
+                        setSelectedUsers(prev =>
+                          e.target.checked
+                            ? [...prev, u.id]
+                            : prev.filter(id => id !== u.id)
+                        );
+                      }}
+                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                    />
+                    <div className="ml-3">
+                      <div className="text-sm font-medium text-gray-700">{u.email}</div>
+                      <div className="text-xs text-gray-500">{u.role}</div>
+                    </div>
+                  </label>
+                ))
+              ) : (
+                <div className="px-3 py-2 text-gray-500 text-sm">
+                  No users found
+                </div>
+              )}
             </div>
           </div>
 
