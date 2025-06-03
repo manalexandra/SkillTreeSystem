@@ -6,7 +6,18 @@ import Navbar from "../components/layout/Navbar";
 import NodeDescriptionEditor from "../components/node/NodeDescriptionEditor";
 import NodeProgress from "../components/node/NodeProgress";
 import type { SkillNode } from "../types";
-import { ArrowLeft, GitBranchPlus, Clock, CheckCircle, AlertTriangle, Loader2, ChevronRight } from "lucide-react";
+import { 
+  ArrowLeft, 
+  GitBranchPlus, 
+  Clock, 
+  CheckCircle, 
+  AlertTriangle, 
+  Loader2, 
+  ChevronRight,
+  Trophy,
+  Target,
+  XCircle
+} from "lucide-react";
 import { supabase } from "../services/supabase";
 
 const NodeDetail: React.FC = () => {
@@ -19,6 +30,7 @@ const NodeDetail: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
 
   useEffect(() => {
     if (!user || !nodeId) return;
@@ -109,12 +121,24 @@ const NodeDetail: React.FC = () => {
       
       setProgress(score);
       
-      // If score is 10, mark as completed
+      // If score is 10, show completion modal
       if (score === 10) {
-        await markNodeCompleted(user.id, node.id, true);
+        setShowCompletionModal(true);
       }
     } catch (err) {
       setError("Failed to update progress");
+      console.error(err);
+    }
+  };
+
+  const handleMarkAsComplete = async () => {
+    if (!node || !user) return;
+    
+    try {
+      await markNodeCompleted(user.id, node.id, true);
+      setShowCompletionModal(false);
+    } catch (err) {
+      setError("Failed to mark skill as complete");
       console.error(err);
     }
   };
@@ -165,38 +189,72 @@ const NodeDetail: React.FC = () => {
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
-          <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-3 mb-4">
-                  <Link
-                    to="/dashboard"
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <ArrowLeft className="h-5 w-5" />
-                  </Link>
-                  <GitBranchPlus className="h-6 w-6 text-primary-600" />
-                </div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">{node.title}</h1>
-                <div className="flex items-center gap-4 text-sm text-gray-500">
-                  <div className="flex items-center">
-                    <Clock className="h-4 w-4 mr-1" />
-                    Created {new Date(node.createdAt).toLocaleDateString()}
+          <div className="bg-white rounded-xl shadow-sm mb-8 overflow-hidden">
+            <div className="p-6 pb-8">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <Link
+                      to="/dashboard"
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <ArrowLeft className="h-5 w-5" />
+                    </Link>
+                    <GitBranchPlus className="h-6 w-6 text-primary-600" />
                   </div>
-                  <div className="flex items-center">
-                    <CheckCircle className={`h-4 w-4 mr-1 ${
-                      isCompleted ? 'text-green-500' : 'text-gray-400'
-                    }`} />
-                    {isCompleted ? 'Completed' : 'Not completed'}
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2">{node.title}</h1>
+                  <div className="flex items-center gap-4 text-sm text-gray-500">
+                    <div className="flex items-center">
+                      <Clock className="h-4 w-4 mr-1" />
+                      Created {new Date(node.createdAt).toLocaleDateString()}
+                    </div>
+                    <div className="flex items-center">
+                      <Target className="h-4 w-4 mr-1" />
+                      Progress: {progress}/10
+                    </div>
                   </div>
                 </div>
+                
+                {error && (
+                  <div className="bg-error-50 text-error-700 px-4 py-2 rounded-lg text-sm flex items-center">
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    {error}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Status Bar */}
+            <div className={`px-6 py-3 flex items-center justify-between ${
+              isCompleted ? 'bg-green-50' : 'bg-gray-50'
+            }`}>
+              <div className="flex items-center">
+                {isCompleted ? (
+                  <>
+                    <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                    <span className="font-medium text-green-700">Completed</span>
+                  </>
+                ) : progress === 10 ? (
+                  <>
+                    <Trophy className="h-5 w-5 text-yellow-500 mr-2" />
+                    <span className="font-medium text-yellow-700">Ready to complete!</span>
+                  </>
+                ) : (
+                  <>
+                    <Target className="h-5 w-5 text-blue-500 mr-2" />
+                    <span className="font-medium text-blue-700">In Progress</span>
+                  </>
+                )}
               </div>
               
-              {error && (
-                <div className="bg-error-50 text-error-700 px-4 py-2 rounded-lg text-sm flex items-center">
-                  <AlertTriangle className="h-4 w-4 mr-2" />
-                  {error}
-                </div>
+              {progress === 10 && !isCompleted && (
+                <button
+                  onClick={() => setShowCompletionModal(true)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center"
+                >
+                  <Trophy className="h-4 w-4 mr-2" />
+                  Mark as Complete
+                </button>
               )}
             </div>
           </div>
@@ -225,7 +283,7 @@ const NodeDetail: React.FC = () => {
                 <NodeProgress
                   progress={progress}
                   onUpdateProgress={handleUpdateProgress}
-                  readOnly={!user}
+                  readOnly={!user || isCompleted}
                 />
               </div>
 
@@ -258,6 +316,41 @@ const NodeDetail: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Completion Modal */}
+      {showCompletionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trophy className="h-8 w-8 text-yellow-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                Ready to Complete!
+              </h3>
+              <p className="text-gray-600 mb-6">
+                You've reached the maximum progress for this skill. Would you like to mark it as complete?
+              </p>
+              <div className="flex justify-center space-x-3">
+                <button
+                  onClick={() => setShowCompletionModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors flex items-center"
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Not Yet
+                </button>
+                <button
+                  onClick={handleMarkAsComplete}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Complete Skill
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
