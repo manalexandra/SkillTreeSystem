@@ -13,13 +13,14 @@ import EditTeamModal from '../components/admin/EditTeamModal';
 import SkillTypeModal from '../components/admin/SkillTypeModal';
 import SkillTypeList from '../components/admin/SkillTypeList';
 
-type TabType = 'users' | 'teams' | 'skill-types';
+type TabType = 'users' | 'teams' | 'skills';
 
 const AdminPanel: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [skillTypes, setSkillTypes] = useState<SkillType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
@@ -39,7 +40,6 @@ const AdminPanel: React.FC = () => {
   const [viewingTeamId, setViewingTeamId] = useState<string | null>(null);
   const [viewTeamMembers, setViewTeamMembers] = useState<any[]>([]);
   const [loadingTeamMembers, setLoadingTeamMembers] = useState(false);
-  const [skillTypes, setSkillTypes] = useState<SkillType[]>([]);
   const [editingSkillType, setEditingSkillType] = useState<SkillType | null>(null);
   const [savingSkillType, setSavingSkillType] = useState(false);
 
@@ -381,7 +381,7 @@ const AdminPanel: React.FC = () => {
       <Navbar />
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 mb-8">
+          <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
             <div className="p-6 bg-gradient-to-r from-primary-600 to-primary-700">
               <div className="flex items-center justify-between">
                 <div>
@@ -421,15 +421,15 @@ const AdminPanel: React.FC = () => {
                   Teams
                 </button>
                 <button
-                  onClick={() => setActiveTab('skill-types')}
+                  onClick={() => setActiveTab('skills')}
                   className={`py-4 px-6 inline-flex items-center border-b-2 font-medium text-sm ${
-                    activeTab === 'skill-types'
+                    activeTab === 'skills'
                       ? 'border-primary-500 text-primary-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
                   <BookOpen className="h-5 w-5 mr-2" />
-                  Skill Types
+                  Skills
                 </button>
               </nav>
             </div>
@@ -447,11 +447,15 @@ const AdminPanel: React.FC = () => {
                   />
                 </div>
                 <button
-                  onClick={() => activeTab === 'users' ? setAddingUser(true) : setEditingTeamId('')}
+                  onClick={() => {
+                    if (activeTab === 'users') setAddingUser(true);
+                    else if (activeTab === 'teams') setEditingTeamId('');
+                    else if (activeTab === 'skills') setEditingSkillType({} as SkillType);
+                  }}
                   className="flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
                 >
                   <Plus className="h-5 w-5 mr-2" />
-                  Add New {activeTab === 'users' ? 'User' : 'Team'}
+                  Add New {activeTab === 'users' ? 'User' : activeTab === 'teams' ? 'Team' : 'Skill Type'}
                 </button>
               </div>
 
@@ -481,7 +485,7 @@ const AdminPanel: React.FC = () => {
                 </div>
               )}
 
-              {activeTab === 'users' ? (
+              {activeTab === 'users' && (
                 <UserTable
                   users={filteredUsers}
                   userTrees={userTrees}
@@ -496,7 +500,9 @@ const AdminPanel: React.FC = () => {
                   onShowDeleteConfirm={setShowDeleteConfirm}
                   onHideDeleteConfirm={() => setShowDeleteConfirm(null)}
                 />
-              ) : activeTab === 'teams' ? (
+              )}
+
+              {activeTab === 'teams' && (
                 <TeamList
                   teams={filteredTeams}
                   users={users}
@@ -507,33 +513,17 @@ const AdminPanel: React.FC = () => {
                   onViewTeam={setViewingTeamId}
                   onUpdateTeam={handleUpdateTeam}
                 />
-              ) : (
-                <>
-                  <div className="flex justify-end mb-6">
-                    <button
-                      onClick={() => setEditingSkillType({})}
-                      className="flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Skill Type
-                    </button>
-                  </div>
+              )}
 
-                  <SkillTypeList
-                    skillTypes={skillTypes}
-                    onEdit={setEditingSkillType}
-                    onDelete={handleDeleteSkillType}
-                  />
-
-                  {editingSkillType && (
-                    <SkillTypeModal
-                      skillType={editingSkillType}
-                      onClose={() => setEditingSkillType(null)}
-                      onSave={handleSaveSkillType}
-                      isLoading={savingSkillType}
-                    />
+              {activeTab === 'skills' && (
+                <SkillTypeList
+                  skillTypes={skillTypes.filter(st =>
+                    st.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    st.description?.toLowerCase().includes(searchTerm.toLowerCase())
                   )}
-                </>
+                  onEdit={setEditingSkillType}
+                  onDelete={handleDeleteSkillType}
+                />
               )}
             </div>
           </div>
@@ -685,6 +675,15 @@ const AdminPanel: React.FC = () => {
           members={viewTeamMembers}
           loading={loadingTeamMembers}
           onClose={() => setViewingTeamId(null)}
+        />
+      )}
+
+      {editingSkillType !== null && (
+        <SkillTypeModal
+          skillType={editingSkillType.id ? editingSkillType : undefined}
+          onClose={() => setEditingSkillType(null)}
+          onSave={handleSaveSkillType}
+          isLoading={savingSkillType}
         />
       )}
     </>
