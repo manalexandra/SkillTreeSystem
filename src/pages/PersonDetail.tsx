@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import { useAuth } from '../context/AuthContext';
-import { User, SkillNode } from '../types';
-import { fetchAllUsers, getTeamMembers } from '../services/userService';
+import { User, SkillNode, CompletedTree } from '../types';
+import { fetchAllUsers, getTeamMembers, getCompletedTrees } from '../services/userService';
 import { getAllUserProgress, getAllSkillNodes } from '../services/supabase';
+import SkillBadge from '../components/skill-tree/SkillBadge';
 import {
   ArrowLeft,
   Award,
@@ -16,7 +17,8 @@ import {
   XCircle,
   ChevronRight,
   Users,
-  Zap
+  Zap,
+  Trophy
 } from 'lucide-react';
 
 const PersonDetail: React.FC = () => {
@@ -25,6 +27,7 @@ const PersonDetail: React.FC = () => {
   const [progress, setProgress] = useState<Record<string, boolean>>({});
   const [nodes, setNodes] = useState<SkillNode[]>([]);
   const [loading, setLoading] = useState(true);
+  const [badges, setBadges] = useState<CompletedTree[]>([]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -38,13 +41,15 @@ const PersonDetail: React.FC = () => {
         setUser(foundUser || null);
 
         // Load all nodes and progress
-        const [allNodes, userProgress] = await Promise.all([
+        const [allNodes, userProgress, userBadges] = await Promise.all([
           getAllSkillNodes(),
-          getAllUserProgress(userId)
+          getAllUserProgress(userId),
+          getCompletedTrees(userId)
         ]);
 
         setNodes(allNodes);
         setProgress(userProgress);
+        setBadges(userBadges);
       } catch (error) {
         console.error('Error loading user data:', error);
       } finally {
@@ -168,6 +173,26 @@ const PersonDetail: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Badges Section */}
+        {badges.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
+              <Trophy className="h-5 w-5 text-primary-600 mr-2" />
+              Earned Badges
+            </h2>
+            <div className="flex flex-wrap gap-3">
+              {badges.map(badge => (
+                <SkillBadge
+                  key={`${badge.treeId}-${badge.skillTypeId}`}
+                  skillType={badge.skillType!}
+                  completedAt={badge.completedAt}
+                  size="lg"
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

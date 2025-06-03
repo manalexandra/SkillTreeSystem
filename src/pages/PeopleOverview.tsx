@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import { useAuth } from '../context/AuthContext';
-import { fetchAllUsers, getTeamMembers } from '../services/userService';
+import { fetchAllUsers, getTeamMembers, getCompletedTrees } from '../services/userService';
 import { getAllUserProgress, supabase } from '../services/supabase';
-import { User, Team } from '../types';
+import { User, Team, CompletedTree } from '../types';
+import SkillBadge from '../components/skill-tree/SkillBadge';
 import { 
   Search, 
   Users, 
@@ -27,6 +28,7 @@ const PeopleOverview: React.FC = () => {
   const [userProgress, setUserProgress] = useState<Record<string, Record<string, boolean>>>({});
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
+  const [userBadges, setUserBadges] = useState<Record<string, CompletedTree[]>>({});
 
   useEffect(() => {
     const loadData = async () => {
@@ -53,13 +55,21 @@ const PeopleOverview: React.FC = () => {
         }
         setTeamMembers(membersMap);
 
-        // Load progress for each user
+        // Load progress and badges for each user
         const progressMap: Record<string, Record<string, boolean>> = {};
+        const badgesMap: Record<string, CompletedTree[]> = {};
+        
         for (const user of allUsers) {
-          const progress = await getAllUserProgress(user.id);
+          const [progress, badges] = await Promise.all([
+            getAllUserProgress(user.id),
+            getCompletedTrees(user.id)
+          ]);
           progressMap[user.id] = progress;
+          badgesMap[user.id] = badges;
         }
+        
         setUserProgress(progressMap);
+        setUserBadges(badgesMap);
 
       } catch (error) {
         console.error('Error loading data:', error);
@@ -185,6 +195,7 @@ const PeopleOverview: React.FC = () => {
             const userTeams = teams.filter(team => 
               teamMembers[team.id]?.includes(user.id)
             );
+            const badges = userBadges[user.id] || [];
 
             return (
               <Link
@@ -221,6 +232,25 @@ const PeopleOverview: React.FC = () => {
                   </div>
                   <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-primary-500 transition-colors" />
                 </div>
+
+                {/* Badges */}
+                {badges.length > 0 && (
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    {badges.slice(0, 3).map(badge => (
+                      <SkillBadge
+                        key={`${badge.treeId}-${badge.skillTypeId}`}
+                        skillType={badge.skillType!}
+                        completedAt={badge.completedAt}
+                        size="sm"
+                      />
+                    ))}
+                    {badges.length > 3 && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs">
+                        +{badges.length - 3} more
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 <div className="space-y-4">
                   {/* Progress Bar */}
