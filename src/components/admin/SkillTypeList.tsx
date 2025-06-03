@@ -47,8 +47,8 @@ const SkillTypeList: React.FC<SkillTypeListProps> = ({
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-lg font-medium text-gray-900">{skillType.name}</h3>
-                  <span className={`text-xs px-2 py-1 rounded-full ${getTypeColor(skillType.type)}`}>
-                    {skillType.type.split('_').map(word => 
+                  <span className={`text-xs px-2 py-1 rounded-full ${getTypeColor(skillType.type || 'unknown')}`}>
+                    {(skillType.type || 'unknown').split('_').map(word => 
                       word.charAt(0).toUpperCase() + word.slice(1)
                     ).join(' ')}
                   </span>
