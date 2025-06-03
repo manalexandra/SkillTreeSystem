@@ -6,12 +6,27 @@ export interface User {
   role: UserRole;
 }
 
+export interface Team {
+  id: string;
+  name: string;
+  description?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface TeamMember {
+  teamId: string;
+  userId: string;
+  joinedAt: string;
+}
+
 export interface SkillTree {
   id: string;
   name: string;
   description?: string;
   createdBy: string;
   createdAt: string;
+  teamId?: string;
 }
 
 export interface SkillTreeAssignment {
