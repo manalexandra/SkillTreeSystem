@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signUp } from '../../services/supabase';
 import { Mail, Lock, UserPlus } from 'lucide-react';
+import { addUser } from '../../services/userService';
 import type { UserRole } from '../../types';
 
 const RegisterForm: React.FC = () => {
@@ -18,17 +18,10 @@ const RegisterForm: React.FC = () => {
     setError(null);
     
     try {
-      const { data, error } = await signUp(email, password, role);
-      
-      if (error) {
-        throw new Error(error.message);
-      }
-      
-      if (data) {
-        navigate('/login', { 
-          state: { message: 'Registration successful. Please sign in with your new account.' }
-        });
-      }
+      await addUser(email, password, role);
+      navigate('/login', { 
+        state: { message: 'Registration successful. Please sign in with your new account.' }
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
