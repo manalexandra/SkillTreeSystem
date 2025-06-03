@@ -39,6 +39,7 @@ const AdminPanel: React.FC = () => {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [showAddMembers, setShowAddMembers] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+}
 
 [Rest of the original file content remains exactly the same until the teams mapping section, which is updated with the new button as shown in the diff]
 
