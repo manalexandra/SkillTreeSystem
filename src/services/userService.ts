@@ -100,6 +100,30 @@ export const removeTeamMember = async (teamId: string, userId: string): Promise<
   }
 };
 
+// Get available users for team (users not already in the team)
+export const getAvailableTeamUsers = async (teamId: string): Promise<User[]> => {
+  // First get current team members
+  const { data: teamMembers } = await supabase
+    .from('team_members')
+    .select('user_id')
+    .eq('team_id', teamId);
+
+  const existingUserIds = teamMembers?.map(member => member.user_id) || [];
+
+  // Then get all users except those already in the team
+  const { data: users, error } = await supabase
+    .from('users')
+    .select('id, email, role')
+    .not('id', 'in', `(${existingUserIds.join(',')})`);
+
+  if (error) {
+    console.error('Error fetching available users:', error);
+    return [];
+  }
+
+  return users as User[];
+};
+
 // Fetch users assigned to a specific tree
 export const getTreeAssignedUsers = async (treeId: string): Promise<User[]> => {
   // First get the user_ids from user_skill_trees
