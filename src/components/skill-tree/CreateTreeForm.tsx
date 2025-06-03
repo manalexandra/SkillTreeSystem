@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSkillTreeStore } from '../../stores/skillTreeStore';
 import { useAuth } from '../../context/AuthContext';
-import { fetchAllUsers } from '../../services/userService';
+import { fetchAllUsers, getTeamMembers } from '../../services/userService';
 import { X, Users, Search, Building2 } from 'lucide-react';
 import type { User, Team } from '../../types';
 import { supabase } from '../../services/supabase';
@@ -47,6 +47,25 @@ const CreateTreeForm: React.FC<CreateTreeFormProps> = ({ onClose, onSuccess }) =
     };
     loadTeams();
   }, []);
+
+  // When a team is selected, automatically select all its members
+  useEffect(() => {
+    const loadTeamMembers = async () => {
+      if (selectedTeam) {
+        try {
+          const members = await getTeamMembers(selectedTeam);
+          const memberIds = members.map(member => member.userId);
+          setSelectedUsers(memberIds);
+        } catch (error) {
+          console.error('Error loading team members:', error);
+        }
+      } else {
+        setSelectedUsers([]);
+      }
+    };
+
+    loadTeamMembers();
+  }, [selectedTeam]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
