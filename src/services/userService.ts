@@ -1,19 +1,6 @@
 import { supabase } from './supabase';
 import type { User, UserRole, Team, TeamMember, CompletedTree, SkillType } from '../types';
 
-// Fetch current user from session
-export const getCurrentSessionUser = async (): Promise<User | null> => {
-  const { data } = await supabase.auth.getSession();
-  if (data?.session?.user) {
-    return {
-      id: data.session.user.id,
-      email: data.session.user.email || '',
-      role: (data.session.user.user_metadata?.role as UserRole) || 'user',
-    };
-  }
-  return null;
-};
-
 // Get completed trees for a user
 export const getCompletedTrees = async (userId: string): Promise<CompletedTree[]> => {
   const { data, error } = await supabase
