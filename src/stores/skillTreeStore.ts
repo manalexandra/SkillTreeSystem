@@ -9,7 +9,6 @@ import {
   deleteSkillNode,
   updateUserProgress,
 } from '../services/supabase';
-import { fetchUserSkillTrees } from '../services/userService';
 import type { SkillTree, SkillNode } from '../types';
 
 interface CreateTreeData {
@@ -69,7 +68,7 @@ export const useSkillTreeStore = create<SkillTreeState>((set, get) => ({
   fetchUserTrees: async (userId: string) => {
     set({ loading: true, error: null });
     try {
-      const trees = await fetchUserSkillTrees(userId);
+      const trees = await getSkillTrees(userId);
       set({ trees, loading: false });
     } catch (error) {
       set({
