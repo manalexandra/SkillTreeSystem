@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { fetchAllUsers, getTeamMembers } from '../services/userService';
-import { getAllUserProgress } from '../services/supabase';
+import { getAllUserProgress, supabase } from '../services/supabase';
 import { User, Team } from '../types';
 import { 
   Search, 
@@ -21,6 +21,7 @@ const PeopleOverview: React.FC = () => {
   const { user } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [teamMembers, setTeamMembers] = useState<Record<string, string[]>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTeam, setSelectedTeam] = useState<string>('all');
   const [userProgress, setUserProgress] = useState<Record<string, Record<string, boolean>>>({});
@@ -34,6 +35,23 @@ const PeopleOverview: React.FC = () => {
         // Load users
         const allUsers = await fetchAllUsers();
         setUsers(allUsers);
+
+        // Load teams
+        const { data: teamsData, error: teamsError } = await supabase
+          .from('teams')
+          .select('*')
+          .order('name');
+        
+        if (teamsError) throw teamsError;
+        setTeams(teamsData || []);
+
+        // Load team members for each team
+        const membersMap: Record<string, string[]> = {};
+        for (const team of teamsData || []) {
+          const members = await getTeamMembers(team.id);
+          membersMap[team.id] = members.map(m => m.userId);
+        }
+        setTeamMembers(membersMap);
 
         // Load progress for each user
         const progressMap: Record<string, Record<string, boolean>> = {};
@@ -70,7 +88,8 @@ const PeopleOverview: React.FC = () => {
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesTeam = selectedTeam === 'all' || true; // TODO: Implement team filtering
+    const matchesTeam = selectedTeam === 'all' || 
+      (teamMembers[selectedTeam] && teamMembers[selectedTeam].includes(user.id));
     return matchesSearch && matchesTeam;
   });
 
@@ -113,10 +132,19 @@ const PeopleOverview: React.FC = () => {
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => setShowFilters(!showFilters)}
-                  className="flex items-center px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className={`flex items-center px-4 py-2 text-gray-700 rounded-lg transition-colors ${
+                    showFilters 
+                      ? 'bg-primary-50 text-primary-700' 
+                      : 'bg-gray-100 hover:bg-gray-200'
+                  }`}
                 >
                   <Filter className="h-5 w-5 mr-2" />
                   Filters
+                  {selectedTeam !== 'all' && (
+                    <span className="ml-2 bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full text-xs">
+                      1
+                    </span>
+                  )}
                 </button>
               </div>
             </div>
@@ -126,7 +154,10 @@ const PeopleOverview: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Team
+                      <div className="flex items-center">
+                        <Building2 className="h-4 w-4 mr-1" />
+                        Team
+                      </div>
                     </label>
                     <select
                       value={selectedTeam}
@@ -151,6 +182,10 @@ const PeopleOverview: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredUsers.map(user => {
             const stats = calculateUserStats(user.id);
+            const userTeams = teams.filter(team => 
+              teamMembers[team.id]?.includes(user.id)
+            );
+
             return (
               <Link
                 key={user.id}
@@ -166,13 +201,22 @@ const PeopleOverview: React.FC = () => {
                       <h3 className="font-medium text-gray-900 group-hover:text-primary-600 transition-colors">
                         {user.email}
                       </h3>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        user.role === 'manager' 
-                          ? 'bg-purple-100 text-purple-800' 
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {user.role}
-                      </span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          user.role === 'manager' 
+                            ? 'bg-purple-100 text-purple-800' 
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {user.role}
+                        </span>
+                        {userTeams.length > 0 && (
+                          <span className="flex items-center text-xs text-gray-500">
+                            <Building2 className="h-3 w-3 mr-1" />
+                            {userTeams[0].name}
+                            {userTeams.length > 1 && ` +${userTeams.length - 1}`}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-primary-500 transition-colors" />
