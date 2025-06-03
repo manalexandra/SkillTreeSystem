@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import { useAuth } from '../context/AuthContext';
-import { fetchAllUsers, updateUserRole, deleteUser, addUser, fetchUserSkillTrees } from '../services/userService';
+import { fetchAllUsers, updateUserRole, deleteUser, addUser } from '../services/userService';
+import { getSkillTrees } from '../services/supabase';
 import { User, UserRole } from '../types';
 import { Users, UserPlus, Trash2, Edit, Save, X, AlertTriangle, Search, Shield, GitBranchPlus, CheckCircle, XCircle } from 'lucide-react';
 
@@ -62,7 +63,7 @@ const AdminPanel: React.FC = () => {
       const fetchAllUserTrees = async () => {
         const allTrees: Record<string, any[]> = {};
         for (const u of users) {
-          allTrees[u.id] = await fetchUserSkillTrees(u.id);
+          allTrees[u.id] = await getSkillTrees(u.id);
         }
         setUserTrees(allTrees);
         setUserTreesLoading(false);
@@ -307,7 +308,9 @@ const AdminPanel: React.FC = () => {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <GitBranchPlus className="h-4 w-4 text-gray-400 mr-2" />
-                              <span className="text-sm text-gray-500">3 trees</span>
+                              <span className="text-sm text-gray-500">
+                                {userTrees[userItem.id]?.length || 0} trees
+                              </span>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
