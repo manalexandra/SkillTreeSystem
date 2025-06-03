@@ -299,17 +299,13 @@ export const useSkillTreeStore = create<SkillTreeState>((set, get) => ({
     }
   },
   
-  // Helper function to get children of a node
   getNodeChildren: (parentId) => {
     return get().nodes.filter(node => node.parentId === parentId)
       .sort((a, b) => a.orderIndex - b.orderIndex);
   },
   
-  // Helper function to build tree structure from flat nodes
   buildTreeStructure: () => {
     const rootNodes = get().getNodeChildren(null);
-    
-    
     
     // Recursive function to build tree
     const buildTree = (nodes: SkillNode[]): SkillNode[] => {
