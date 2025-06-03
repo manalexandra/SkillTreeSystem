@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { fetchAllUsers, getTeamMembers } from '../../services/userService';
+import { fetchAllUsers, getTeamMembers, fetchUsersByIds } from '../../services/userService';
 import { X, Users, Search, Building2 } from 'lucide-react';
 import type { User, Team, SkillTree, SkillType } from '../../types';
 import { supabase } from '../../services/supabase';
@@ -45,11 +45,11 @@ const EditTreeForm: React.FC<EditTreeFormProps> = ({
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [usersData, teamsData, skillTypesData, members] = await Promise.all([
+        // Load all required data in parallel
+        const [usersData, teamsData, skillTypesData] = await Promise.all([
           fetchAllUsers(),
           supabase.from('teams').select('*').order('name'),
           supabase.from('skill_types').select('*').order('name'),
-          getTeamMembers(tree.id)
         ]);
 
         setUsers(usersData);
@@ -66,7 +66,25 @@ const EditTreeForm: React.FC<EditTreeFormProps> = ({
           setSelectedSkillType(matchingSkillType.id);
         }
 
-        setSelectedUsers(members.map(member => member.userId));
+        // Load assigned users
+        const { data: assignedUsers, error: assignedError } = await supabase
+          .from('user_skill_trees')
+          .select('user_id')
+          .eq('tree_id', tree.id);
+
+        if (assignedError) throw assignedError;
+
+        if (assignedUsers && assignedUsers.length > 0) {
+          const userIds = assignedUsers.map(u => u.user_id);
+          setSelectedUsers(userIds);
+        }
+
+        // Load team members if a team is assigned
+        if (tree.teamId) {
+          const teamMembers = await getTeamMembers(tree.teamId);
+          const teamMemberIds = teamMembers.map(member => member.userId);
+          setSelectedUsers(prev => [...new Set([...prev, ...teamMemberIds])]);
+        }
       } catch (error) {
         console.error('Error loading data:', error);
         setError('Failed to load required data');
@@ -76,7 +94,24 @@ const EditTreeForm: React.FC<EditTreeFormProps> = ({
     };
 
     loadData();
-  }, [tree.id, tree.name]);
+  }, [tree.id, tree.name, tree.teamId]);
+
+  // When a team is selected, automatically select all its members
+  useEffect(() => {
+    const loadTeamMembers = async () => {
+      if (selectedTeam) {
+        try {
+          const members = await getTeamMembers(selectedTeam);
+          const memberIds = members.map(member => member.userId);
+          setSelectedUsers(prev => [...new Set([...prev, ...memberIds])]);
+        } catch (error) {
+          console.error('Error loading team members:', error);
+        }
+      }
+    };
+
+    loadTeamMembers();
+  }, [selectedTeam]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
