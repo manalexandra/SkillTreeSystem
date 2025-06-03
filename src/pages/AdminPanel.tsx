@@ -190,22 +190,44 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  const handleUpdateTeam = async (teamId: string) => {
+  const handleUpdateTeam = async (team: Team, selectedUsers: string[]) => {
     try {
-      const team = teams.find(t => t.id === teamId);
-      if (!team) return;
-
-      const { error } = await supabase
+      // Update team details
+      const { error: teamError } = await supabase
         .from('teams')
         .update({
           name: team.name,
           description: team.description
         })
-        .eq('id', teamId);
+        .eq('id', team.id);
 
-      if (error) throw error;
+      if (teamError) throw teamError;
 
-      setEditingTeamId(null);
+      // Update team members
+      if (selectedUsers.length > 0) {
+        // First, remove existing members
+        const { error: deleteError } = await supabase
+          .from('team_members')
+          .delete()
+          .eq('team_id', team.id);
+
+        if (deleteError) throw deleteError;
+
+        // Then add new members
+        const { error: membersError } = await supabase
+          .from('team_members')
+          .insert(
+            selectedUsers.map(userId => ({
+              team_id: team.id,
+              user_id: userId
+            }))
+          );
+
+        if (membersError) throw membersError;
+      }
+
+      // Update local state
+      setTeams(teams.map(t => t.id === team.id ? team : t));
       setSuccessMessage('Team updated successfully');
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
@@ -379,16 +401,13 @@ const AdminPanel: React.FC = () => {
               ) : (
                 <TeamList
                   teams={filteredTeams}
-                  editingTeamId={editingTeamId}
+                  users={users}
                   showDeleteTeamConfirm={showDeleteTeamConfirm}
-                  onUpdateTeam={handleUpdateTeam}
                   onDeleteTeam={handleDeleteTeam}
-                  onEditTeam={setEditingTeamId}
-                  onCancelEdit={() => setEditingTeamId(null)}
                   onShowDeleteConfirm={setShowDeleteTeamConfirm}
                   onHideDeleteConfirm={() => setShowDeleteTeamConfirm(null)}
                   onViewTeam={setViewingTeamId}
-                  onTeamChange={handleTeamChange}
+                  onUpdateTeam={handleUpdateTeam}
                 />
               )}
             </div>
