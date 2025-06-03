@@ -31,31 +31,42 @@ export const fetchAllUsers = async (): Promise<User[]> => {
 
 // Fetch team members
 export const getTeamMembers = async (teamId: string): Promise<TeamMember[]> => {
-  const { data, error } = await supabase
-    .from('team_members')
-    .select(`
-      team_id,
-      user_id,
-      joined_at,
-      users (
-        id,
-        email,
-        role
-      )
-    `)
-    .eq('team_id', teamId);
+  try {
+    // First, fetch team members
+    const { data: teamMembers, error: teamMembersError } = await supabase
+      .from('team_members')
+      .select('team_id, user_id, joined_at')
+      .eq('team_id', teamId);
 
-  if (error) {
+    if (teamMembersError) throw teamMembersError;
+    if (!teamMembers || teamMembers.length === 0) return [];
+
+    // Get unique user IDs
+    const userIds = [...new Set(teamMembers.map(member => member.user_id))];
+
+    // Fetch user details for all team members
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('id, email, role')
+      .in('id', userIds);
+
+    if (usersError) throw usersError;
+    if (!users) return [];
+
+    // Create a map of user details for quick lookup
+    const userMap = new Map(users.map(user => [user.id, user]));
+
+    // Combine team member data with user details
+    return teamMembers.map(member => ({
+      teamId: member.team_id,
+      userId: member.user_id,
+      joinedAt: member.joined_at,
+      user: userMap.get(member.user_id) as User
+    }));
+  } catch (error) {
     console.error('Error fetching team members:', error);
     return [];
   }
-
-  return data.map(member => ({
-    teamId: member.team_id,
-    userId: member.user_id,
-    joinedAt: member.joined_at,
-    user: member.users as User
-  }));
 };
 
 // Add members to team
