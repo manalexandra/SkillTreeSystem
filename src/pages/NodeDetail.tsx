@@ -7,7 +7,7 @@ import NodeDescriptionEditor from "../components/node/NodeDescriptionEditor";
 import NodeComments from "../components/node/NodeComments";
 import NodeProgress from "../components/node/NodeProgress";
 import type { SkillNode, NodeComment } from "../types";
-import { ArrowLeft, GitBranchPlus, Clock, CheckCircle, AlertTriangle, Loader2 } from "lucide-react";
+import { ArrowLeft, GitBranchPlus, Clock, CheckCircle, AlertTriangle, Loader2, ChevronRight } from "lucide-react";
 import { supabase } from "../services/supabase";
 
 const NodeDetail: React.FC = () => {
@@ -47,25 +47,18 @@ const NodeDetail: React.FC = () => {
         // Fetch the tree data to ensure we have all context
         await fetchTreeData(nodeData.tree_id, user.id);
 
-        // Get node progress
+        // Get node progress - using maybeSingle() to handle no progress case
         const { data: progressData } = await supabase
           .from('node_progress')
           .select('score')
           .eq('node_id', nodeId)
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
-        // Get comments
+        // Get comments - removed users join since we'll handle it in the UI
         const { data: commentsData } = await supabase
           .from('node_comments')
-          .select(`
-            *,
-            users (
-              id,
-              email,
-              role
-            )
-          `)
+          .select('*')
           .eq('node_id', nodeId)
           .order('created_at', { ascending: false });
 
@@ -89,7 +82,7 @@ const NodeDetail: React.FC = () => {
           userId: comment.user_id,
           content: comment.content,
           createdAt: comment.created_at,
-          user: comment.users
+          user: null // We'll handle user data display in the NodeComments component
         })) || []);
 
       } catch (err) {
@@ -137,14 +130,7 @@ const NodeDetail: React.FC = () => {
           user_id: user.id,
           content
         })
-        .select(`
-          *,
-          users (
-            id,
-            email,
-            role
-          )
-        `)
+        .select()
         .single();
 
       if (error) throw error;
@@ -155,7 +141,7 @@ const NodeDetail: React.FC = () => {
         userId: data.user_id,
         content: data.content,
         createdAt: data.created_at,
-        user: data.users
+        user: null // We'll handle user data display in the NodeComments component
       }, ...prev]);
     } catch (err) {
       setError("Failed to add comment");
