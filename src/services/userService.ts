@@ -31,24 +31,34 @@ export const fetchAllUsers = async (): Promise<User[]> => {
 
 // Fetch users assigned to a specific tree
 export const getTreeAssignedUsers = async (treeId: string): Promise<User[]> => {
-  const { data, error } = await supabase
+  // First get the user_ids from user_skill_trees
+  const { data: assignments, error: assignmentError } = await supabase
     .from('user_skill_trees')
-    .select(`
-      user_id,
-      users!inner (
-        id,
-        email,
-        role
-      )
-    `)
+    .select('user_id')
     .eq('tree_id', treeId);
 
-  if (error) {
-    console.error('Error fetching assigned users:', error);
+  if (assignmentError) {
+    console.error('Error fetching tree assignments:', assignmentError);
     return [];
   }
 
-  return data.map(row => row.users) as User[];
+  if (!assignments || assignments.length === 0) {
+    return [];
+  }
+
+  // Then fetch the user details for those IDs
+  const userIds = assignments.map(assignment => assignment.user_id);
+  const { data: users, error: usersError } = await supabase
+    .from('users')
+    .select('id, email, role')
+    .in('id', userIds);
+
+  if (usersError) {
+    console.error('Error fetching assigned users:', usersError);
+    return [];
+  }
+
+  return users as User[];
 };
 
 // Fetch all skill trees from Supabase
