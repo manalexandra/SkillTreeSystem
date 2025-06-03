@@ -21,6 +21,14 @@ export interface TeamMember {
   user?: User;
 }
 
+export interface SkillType {
+  id: string;
+  name: string;
+  description?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
 export interface SkillTree {
   id: string;
   name: string;
