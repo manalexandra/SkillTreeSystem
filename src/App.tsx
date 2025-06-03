@@ -27,9 +27,11 @@ function App() {
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/people" element={<PeopleOverview />} />
           <Route path="/people/:userId" element={<PersonDetail />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/\" replace />} />
         </Routes>
       </Router>
    </AuthProvider>
   );
 }
+
+export default App
