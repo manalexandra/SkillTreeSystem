@@ -18,6 +18,7 @@ export interface SkillTreeAssignment {
   treeId: string;
   userId: string;
   assignedAt: string;
+  assignedBy: string;
 }
 
 export interface SkillNode {
@@ -26,11 +27,40 @@ export interface SkillNode {
   parentId: string | null;
   title: string;
   description: string;
+  descriptionHtml?: string;
   orderIndex: number;
   createdAt: string;
   children?: SkillNode[];
+  progress?: number;
   completed?: boolean;
   completedAt?: string;
+}
+
+export interface NodeProgress {
+  userId: string;
+  nodeId: string;
+  score: number;
+  updatedAt: string;
+}
+
+export interface NodeComment {
+  id: string;
+  nodeId: string;
+  userId: string;
+  content: string;
+  createdAt: string;
+  user?: User;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: 'tree_assigned' | 'node_comment';
+  content: string;
+  read: boolean;
+  createdAt: string;
+  relatedTreeId?: string;
+  relatedNodeId?: string;
 }
 
 export interface UserProgress {
