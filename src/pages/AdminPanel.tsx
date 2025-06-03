@@ -4,14 +4,16 @@ import Navbar from '../components/layout/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { fetchAllUsers, updateUserRole, deleteUser, addUser, getTeamMembers } from '../services/userService';
 import { getSkillTrees, supabase } from '../services/supabase';
-import { User, UserRole, Team } from '../types';
-import { UserPlus, AlertTriangle, Search, Shield, X, CheckCircle, Building2, Plus } from 'lucide-react';
+import { User, UserRole, Team, SkillType } from '../types';
+import { UserPlus, AlertTriangle, Search, Shield, X, CheckCircle, Building2, Plus, BookOpen } from 'lucide-react';
 import UserTable from '../components/admin/UserTable';
 import TeamList from '../components/admin/TeamList';
 import TeamMembersModal from '../components/admin/TeamMembersModal';
 import EditTeamModal from '../components/admin/EditTeamModal';
+import SkillTypeModal from '../components/admin/SkillTypeModal';
+import SkillTypeList from '../components/admin/SkillTypeList';
 
-type TabType = 'users' | 'teams';
+type TabType = 'users' | 'teams' | 'skill-types';
 
 const AdminPanel: React.FC = () => {
   const { user } = useAuth();
@@ -37,6 +39,9 @@ const AdminPanel: React.FC = () => {
   const [viewingTeamId, setViewingTeamId] = useState<string | null>(null);
   const [viewTeamMembers, setViewTeamMembers] = useState<any[]>([]);
   const [loadingTeamMembers, setLoadingTeamMembers] = useState(false);
+  const [skillTypes, setSkillTypes] = useState<SkillType[]>([]);
+  const [editingSkillType, setEditingSkillType] = useState<SkillType | null>(null);
+  const [savingSkillType, setSavingSkillType] = useState(false);
 
   useEffect(() => {
     if (user && user.role !== 'manager') {
@@ -81,6 +86,27 @@ const AdminPanel: React.FC = () => {
 
     if (user && user.role === 'manager') {
       loadTeams();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const loadSkillTypes = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('skill_types')
+          .select('*')
+          .order('name');
+        
+        if (error) throw error;
+        setSkillTypes(data || []);
+      } catch (err) {
+        console.error('Error loading skill types:', err);
+        setError('Failed to load skill types');
+      }
+    };
+
+    if (user && user.role === 'manager') {
+      loadSkillTypes();
     }
   }, [user]);
 
@@ -192,7 +218,6 @@ const AdminPanel: React.FC = () => {
 
   const handleUpdateTeam = async (team: Team, selectedUsers: string[]) => {
     try {
-      // Update team details
       const { error: teamError } = await supabase
         .from('teams')
         .update({
@@ -203,9 +228,7 @@ const AdminPanel: React.FC = () => {
 
       if (teamError) throw teamError;
 
-      // Update team members
       if (selectedUsers.length > 0) {
-        // First, remove existing members
         const { error: deleteError } = await supabase
           .from('team_members')
           .delete()
@@ -213,7 +236,6 @@ const AdminPanel: React.FC = () => {
 
         if (deleteError) throw deleteError;
 
-        // Then add new members
         const { error: membersError } = await supabase
           .from('team_members')
           .insert(
@@ -226,7 +248,6 @@ const AdminPanel: React.FC = () => {
         if (membersError) throw membersError;
       }
 
-      // Update local state
       setTeams(teams.map(t => t.id === team.id ? team : t));
       setSuccessMessage('Team updated successfully');
       setTimeout(() => setSuccessMessage(null), 3000);
@@ -260,6 +281,72 @@ const AdminPanel: React.FC = () => {
     setTeams(teams.map(t =>
       t.id === teamId ? { ...t, [field]: value } : t
     ));
+  };
+
+  const handleSaveSkillType = async (skillType: Partial<SkillType>) => {
+    if (!user) return;
+    
+    setSavingSkillType(true);
+    try {
+      if (skillType.id) {
+        const { data, error } = await supabase
+          .from('skill_types')
+          .update({
+            name: skillType.name,
+            description: skillType.description
+          })
+          .eq('id', skillType.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        
+        setSkillTypes(prev => 
+          prev.map(st => st.id === data.id ? data : st)
+        );
+      } else {
+        const { data, error } = await supabase
+          .from('skill_types')
+          .insert({
+            name: skillType.name,
+            description: skillType.description,
+            created_by: user.id
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        
+        setSkillTypes(prev => [...prev, data]);
+      }
+
+      setEditingSkillType(null);
+      setSuccessMessage(`Skill type ${skillType.id ? 'updated' : 'created'} successfully`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      console.error('Error saving skill type:', err);
+      setError(`Failed to ${skillType.id ? 'update' : 'create'} skill type`);
+    } finally {
+      setSavingSkillType(false);
+    }
+  };
+
+  const handleDeleteSkillType = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('skill_types')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setSkillTypes(prev => prev.filter(st => st.id !== id));
+      setSuccessMessage('Skill type deleted successfully');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      console.error('Error deleting skill type:', err);
+      setError('Failed to delete skill type');
+    }
   };
 
   const startEditing = (user: User) => {
@@ -333,6 +420,17 @@ const AdminPanel: React.FC = () => {
                   <Building2 className="h-5 w-5 mr-2" />
                   Teams
                 </button>
+                <button
+                  onClick={() => setActiveTab('skill-types')}
+                  className={`py-4 px-6 inline-flex items-center border-b-2 font-medium text-sm ${
+                    activeTab === 'skill-types'
+                      ? 'border-primary-500 text-primary-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <BookOpen className="h-5 w-5 mr-2" />
+                  Skill Types
+                </button>
               </nav>
             </div>
 
@@ -398,7 +496,7 @@ const AdminPanel: React.FC = () => {
                   onShowDeleteConfirm={setShowDeleteConfirm}
                   onHideDeleteConfirm={() => setShowDeleteConfirm(null)}
                 />
-              ) : (
+              ) : activeTab === 'teams' ? (
                 <TeamList
                   teams={filteredTeams}
                   users={users}
@@ -409,6 +507,33 @@ const AdminPanel: React.FC = () => {
                   onViewTeam={setViewingTeamId}
                   onUpdateTeam={handleUpdateTeam}
                 />
+              ) : (
+                <>
+                  <div className="flex justify-end mb-6">
+                    <button
+                      onClick={() => setEditingSkillType({})}
+                      className="flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Skill Type
+                    </button>
+                  </div>
+
+                  <SkillTypeList
+                    skillTypes={skillTypes}
+                    onEdit={setEditingSkillType}
+                    onDelete={handleDeleteSkillType}
+                  />
+
+                  {editingSkillType && (
+                    <SkillTypeModal
+                      skillType={editingSkillType}
+                      onClose={() => setEditingSkillType(null)}
+                      onSave={handleSaveSkillType}
+                      isLoading={savingSkillType}
+                    />
+                  )}
+                </>
               )}
             </div>
           </div>
