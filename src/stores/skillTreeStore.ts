@@ -8,6 +8,7 @@ import {
   updateSkillNode,
   deleteSkillNode,
   updateUserProgress,
+  supabase
 } from '../services/supabase';
 import type { SkillTree, SkillNode } from '../types';
 
@@ -16,6 +17,7 @@ interface CreateTreeData {
   description?: string;
   createdBy: string;
   assignedUsers?: string[];
+  teamId?: string;
 }
 
 interface SkillTreeState {
@@ -31,6 +33,8 @@ interface SkillTreeState {
   fetchTrees: () => Promise<void>;
   fetchTreeData: (treeId: string, userId: string) => Promise<void>;
   createNewTree: (data: CreateTreeData) => Promise<SkillTree | null>;
+  updateTree: (tree: SkillTree) => Promise<void>;
+  deleteTree: (treeId: string) => Promise<void>;
   addNode: (node: Omit<SkillNode, 'id' | 'createdAt'>) => Promise<SkillNode | null>;
   updateNode: (node: Partial<SkillNode> & { id: string }) => Promise<SkillNode | null>;
   removeNode: (nodeId: string) => Promise<boolean>;
@@ -59,21 +63,6 @@ export const useSkillTreeStore = create<SkillTreeState>((set, get) => ({
       set({ 
         error: 'Failed to fetch skill trees', 
         loading: false 
-      });
-      console.error(error);
-    }
-  },
-
-  // Fetch trees assigned to a specific user
-  fetchUserTrees: async (userId: string) => {
-    set({ loading: true, error: null });
-    try {
-      const trees = await getSkillTrees(userId);
-      set({ trees, loading: false });
-    } catch (error) {
-      set({
-        error: 'Failed to fetch user trees',
-        loading: false
       });
       console.error(error);
     }
@@ -125,7 +114,6 @@ export const useSkillTreeStore = create<SkillTreeState>((set, get) => ({
   createNewTree: async (data: CreateTreeData) => {
     set({ loading: true, error: null });
     try {
-      // Fix: Pass arguments separately instead of as an object
       const newTree = await createSkillTree(
         data.name,
         data.createdBy,
@@ -146,6 +134,59 @@ export const useSkillTreeStore = create<SkillTreeState>((set, get) => ({
       });
       console.error(error);
       return null;
+    }
+  },
+
+  updateTree: async (tree: SkillTree) => {
+    set({ loading: true, error: null });
+    try {
+      const { error } = await supabase
+        .from('skill_trees')
+        .update({
+          name: tree.name,
+          description: tree.description
+        })
+        .eq('id', tree.id);
+
+      if (error) throw error;
+
+      set(state => ({
+        trees: state.trees.map(t => t.id === tree.id ? tree : t),
+        currentTree: state.currentTree?.id === tree.id ? tree : state.currentTree,
+        loading: false
+      }));
+    } catch (error) {
+      set({
+        error: 'Failed to update skill tree',
+        loading: false
+      });
+      console.error(error);
+      throw error;
+    }
+  },
+
+  deleteTree: async (treeId: string) => {
+    set({ loading: true, error: null });
+    try {
+      const { error } = await supabase
+        .from('skill_trees')
+        .delete()
+        .eq('id', treeId);
+
+      if (error) throw error;
+
+      set(state => ({
+        trees: state.trees.filter(t => t.id !== treeId),
+        currentTree: state.currentTree?.id === treeId ? null : state.currentTree,
+        loading: false
+      }));
+    } catch (error) {
+      set({
+        error: 'Failed to delete skill tree',
+        loading: false
+      });
+      console.error(error);
+      throw error;
     }
   },
   
@@ -267,6 +308,8 @@ export const useSkillTreeStore = create<SkillTreeState>((set, get) => ({
   // Helper function to build tree structure from flat nodes
   buildTreeStructure: () => {
     const rootNodes = get().getNodeChildren(null);
+    
+    
     
     // Recursive function to build tree
     const buildTree = (nodes: SkillNode[]): SkillNode[] => {

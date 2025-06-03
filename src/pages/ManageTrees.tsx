@@ -6,8 +6,8 @@ import Navbar from '../components/layout/Navbar';
 import SkillTreeView from '../components/skill-tree/SkillTreeView';
 import SkillNodeForm from '../components/skill-tree/SkillNodeForm';
 import CreateTreeForm from '../components/skill-tree/CreateTreeForm';
-import { Plus, Edit, GitBranchPlus, TreeDeciduous, Search, ChevronRight, Users, CheckCircle } from 'lucide-react';
-import type { SkillNode as SkillNodeType, User } from '../types';
+import { Plus, Edit, GitBranchPlus, TreeDeciduous, Search, ChevronRight, Users, CheckCircle, Trash2, AlertTriangle } from 'lucide-react';
+import type { SkillNode as SkillNodeType, User, SkillTree } from '../types';
 import { getUserProgress } from '../services/supabase';
 import { getTreeAssignedUsers } from '../services/userService';
 
@@ -19,7 +19,7 @@ interface UserProgress {
 
 const ManageTrees: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
-  const { trees, nodes, fetchTrees } = useSkillTreeStore();
+  const { trees, nodes, fetchTrees, deleteTree, updateTree } = useSkillTreeStore();
   const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
   const [showCreateTree, setShowCreateTree] = useState(false);
   const [showNodeForm, setShowNodeForm] = useState(false);
@@ -29,6 +29,10 @@ const ManageTrees: React.FC = () => {
   const [userProgress, setUserProgress] = useState<UserProgress[]>([]);
   const [loadingProgress, setLoadingProgress] = useState(false);
   const navigate = useNavigate();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [editingTree, setEditingTree] = useState<SkillTree | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   // Redirect if not authenticated or not a manager
   useEffect(() => {
@@ -89,11 +93,38 @@ const ManageTrees: React.FC = () => {
 
   const handleCreateTreeSuccess = (treeId: string) => {
     setSelectedTreeId(treeId);
+    setSuccess('Tree created successfully');
+    setTimeout(() => setSuccess(null), 3000);
   };
 
   const handleEditNode = (node: SkillNodeType) => {
     setEditNode(node);
     setShowNodeForm(true);
+  };
+
+  const handleDeleteTree = async (treeId: string) => {
+    try {
+      await deleteTree(treeId);
+      setShowDeleteConfirm(null);
+      setSelectedTreeId(trees.length > 1 ? trees[0].id : null);
+      setSuccess('Tree deleted successfully');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError('Failed to delete tree');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  const handleUpdateTree = async (tree: SkillTree) => {
+    try {
+      await updateTree(tree);
+      setEditingTree(null);
+      setSuccess('Tree updated successfully');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError('Failed to update tree');
+      setTimeout(() => setError(null), 3000);
+    }
   };
 
   const filteredTrees = trees.filter(tree =>
@@ -126,6 +157,20 @@ const ManageTrees: React.FC = () => {
               </button>
             </div>
           </div>
+
+          {error && (
+            <div className="mx-6 mt-4 p-4 bg-red-50 text-red-700 rounded-lg flex items-center">
+              <AlertTriangle className="h-5 w-5 mr-2" />
+              {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="mx-6 mt-4 p-4 bg-green-50 text-green-700 rounded-lg flex items-center">
+              <CheckCircle className="h-5 w-5 mr-2" />
+              {success}
+            </div>
+          )}
           
           <div className="flex flex-col lg:flex-row lg:items-start">
             {/* Sidebar with tree selection */}
@@ -154,31 +199,78 @@ const ManageTrees: React.FC = () => {
                   </div>
                 ) : (
                   filteredTrees.map((tree) => (
-                    <button
+                    <div
                       key={tree.id}
-                      onClick={() => setSelectedTreeId(tree.id)}
-                      className={`w-full text-left p-4 rounded-xl transition-all duration-200 ${
+                      className={`relative group ${
                         selectedTreeId === tree.id
                           ? 'bg-primary-50 border-2 border-primary-500'
                           : 'bg-white border border-gray-200 hover:border-primary-300 hover:shadow-md'
-                      }`}
+                      } rounded-xl transition-all duration-200`}
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <GitBranchPlus className={`h-5 w-5 ${
-                            selectedTreeId === tree.id ? 'text-primary-600' : 'text-gray-500'
+                      <button
+                        onClick={() => setSelectedTreeId(tree.id)}
+                        className="w-full text-left p-4"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <GitBranchPlus className={`h-5 w-5 ${
+                              selectedTreeId === tree.id ? 'text-primary-600' : 'text-gray-500'
+                            }`} />
+                            <span className={`ml-3 font-medium ${
+                              selectedTreeId === tree.id ? 'text-primary-900' : 'text-gray-700'
+                            }`}>
+                              {tree.name}
+                            </span>
+                          </div>
+                          <ChevronRight className={`h-4 w-4 ${
+                            selectedTreeId === tree.id ? 'text-primary-500' : 'text-gray-400'
                           }`} />
-                          <span className={`ml-3 font-medium ${
-                            selectedTreeId === tree.id ? 'text-primary-900' : 'text-gray-700'
-                          }`}>
-                            {tree.name}
-                          </span>
                         </div>
-                        <ChevronRight className={`h-4 w-4 ${
-                          selectedTreeId === tree.id ? 'text-primary-500' : 'text-gray-400'
-                        }`} />
+                      </button>
+
+                      {/* Action buttons */}
+                      <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setEditingTree(tree)}
+                            className="p-1 text-gray-400 hover:text-primary-600 transition-colors"
+                            title="Edit tree"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => setShowDeleteConfirm(tree.id)}
+                            className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                            title="Delete tree"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
-                    </button>
+
+                      {/* Delete confirmation */}
+                      {showDeleteConfirm === tree.id && (
+                        <div className="p-4 bg-red-50 rounded-b-lg border-t border-red-100">
+                          <p className="text-sm text-red-700 mb-3">
+                            Are you sure you want to delete this tree? This action cannot be undone.
+                          </p>
+                          <div className="flex justify-end space-x-2">
+                            <button
+                              onClick={() => handleDeleteTree(tree.id)}
+                              className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700"
+                            >
+                              Delete
+                            </button>
+                            <button
+                              onClick={() => setShowDeleteConfirm(null)}
+                              className="px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-50"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   ))
                 )}
               </div>
@@ -321,6 +413,71 @@ const ManageTrees: React.FC = () => {
           }}
           isEdit={!!editNode}
         />
+      )}
+
+      {/* Edit Tree Modal */}
+      {editingTree && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-semibold">Edit Tree</h3>
+              <button
+                onClick={() => setEditingTree(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              handleUpdateTree(editingTree);
+            }}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tree Name
+                  </label>
+                  <input
+                    type="text"
+                    value={editingTree.name}
+                    onChange={(e) => setEditingTree({ ...editingTree, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={editingTree.description || ''}
+                    onChange={(e) => setEditingTree({ ...editingTree, description: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    rows={3}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setEditingTree(null)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
