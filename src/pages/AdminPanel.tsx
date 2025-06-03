@@ -294,7 +294,7 @@ const AdminPanel: React.FC = () => {
           .update({
             name: skillType.name,
             description: skillType.description,
-            type: skillType.type
+            level: skillType.level
           })
           .eq('id', skillType.id)
           .select()
@@ -311,7 +311,7 @@ const AdminPanel: React.FC = () => {
           .insert({
             name: skillType.name,
             description: skillType.description,
-            type: skillType.type,
+            level: skillType.level,
             created_by: user.id
           })
           .select()
