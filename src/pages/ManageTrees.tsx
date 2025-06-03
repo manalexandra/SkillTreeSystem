@@ -6,7 +6,7 @@ import Navbar from '../components/layout/Navbar';
 import SkillTreeView from '../components/skill-tree/SkillTreeView';
 import SkillNodeForm from '../components/skill-tree/SkillNodeForm';
 import CreateTreeForm from '../components/skill-tree/CreateTreeForm';
-import { Plus, Edit, GitBranchPlus, TreeDeciduous, Search, ChevronRight, Users, CheckCircle, Trash2, AlertTriangle } from 'lucide-react';
+import { Plus, Edit, GitBranchPlus, TreeDeciduous, Search, ChevronRight, Users, CheckCircle, Trash2, AlertTriangle, X } from 'lucide-react';
 import type { SkillNode as SkillNodeType, User, SkillTree } from '../types';
 import { getUserProgress } from '../services/supabase';
 import { getTreeAssignedUsers } from '../services/userService';
