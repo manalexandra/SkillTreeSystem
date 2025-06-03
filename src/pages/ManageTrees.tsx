@@ -6,10 +6,10 @@ import Navbar from '../components/layout/Navbar';
 import SkillTreeView from '../components/skill-tree/SkillTreeView';
 import SkillNodeForm from '../components/skill-tree/SkillNodeForm';
 import CreateTreeForm from '../components/skill-tree/CreateTreeForm';
-import { Plus, Edit, GitBranchPlus, TreeDeciduous, Search, ChevronRight, Users, Award, CheckCircle } from 'lucide-react';
+import { Plus, Edit, GitBranchPlus, TreeDeciduous, Search, ChevronRight, Users, CheckCircle } from 'lucide-react';
 import type { SkillNode as SkillNodeType, User } from '../types';
-import { fetchAllUsers } from '../services/userService';
 import { getUserProgress } from '../services/supabase';
+import { getTreeAssignedUsers } from '../services/userService';
 
 interface UserProgress {
   user: User;
@@ -58,11 +58,11 @@ const ManageTrees: React.FC = () => {
       
       setLoadingProgress(true);
       try {
-        // Get all users
-        const users = await fetchAllUsers();
+        // Get assigned users for the selected tree
+        const users = await getTreeAssignedUsers(selectedTreeId);
         setAssignedUsers(users);
 
-        // Get progress for each user
+        // Get progress for each assigned user
         const progressPromises = users.map(async (user) => {
           const progress = await getUserProgress(user.id, selectedTreeId);
           const completedNodes = Object.values(progress).filter(Boolean).length;
