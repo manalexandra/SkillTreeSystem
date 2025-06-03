@@ -178,24 +178,46 @@ export const deleteUser = async (userId: string): Promise<void> => {
   }
 };
 
-// Add new user - using the working registration code
+// Add new user - with explicit public.users table insertion
 export const addUser = async (email: string, password: string, role: UserRole): Promise<void> => {
-  const { data, error: signUpError } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        role: role
+  try {
+    // First, create the auth user
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          role: role
+        }
       }
+    });
+
+    if (signUpError) {
+      console.error('Error in signUp:', signUpError);
+      throw signUpError;
     }
-  });
 
-  if (signUpError) {
-    console.error('Error in signUp:', signUpError);
-    throw signUpError;
-  }
+    if (!data.user) {
+      throw new Error('No user returned from signup');
+    }
 
-  if (!data.user) {
-    throw new Error('No user returned from signup');
+    // Then explicitly insert into public.users table
+    const { error: insertError } = await supabase
+      .from('users')
+      .insert({
+        id: data.user.id,
+        email: data.user.email,
+        role: role
+      });
+
+    if (insertError) {
+      // If insertion fails, we should clean up the auth user
+      await supabase.auth.admin.deleteUser(data.user.id);
+      console.error('Error inserting user data:', insertError);
+      throw insertError;
+    }
+  } catch (error) {
+    console.error('Error in addUser:', error);
+    throw error;
   }
 };
