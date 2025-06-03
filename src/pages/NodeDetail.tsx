@@ -13,7 +13,7 @@ const NodeDetail: React.FC = () => {
   const { nodeId } = useParams<{ nodeId: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { nodes, markNodeCompleted, userProgress, fetchTreeData } = useSkillTreeStore();
+  const { nodes, markNodeCompleted, userProgress } = useSkillTreeStore();
   const [node, setNode] = useState<SkillNode | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -27,24 +27,15 @@ const NodeDetail: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        // First get the node details
+        // Get node details
         const { data: nodeData, error: nodeError } = await supabase
           .from('skill_nodes')
-          .select(`
-            *,
-            skill_trees (
-              id,
-              name
-            )
-          `)
+          .select('*')
           .eq('id', nodeId)
           .single();
 
         if (nodeError) throw nodeError;
         if (!nodeData) throw new Error('Node not found');
-
-        // Fetch the tree data to ensure we have all context
-        await fetchTreeData(nodeData.tree_id, user.id);
 
         // Get node progress
         const { data: progressData } = await supabase
@@ -77,7 +68,7 @@ const NodeDetail: React.FC = () => {
     };
 
     loadNodeData();
-  }, [nodeId, user, fetchTreeData, userProgress]);
+  }, [nodeId, user, userProgress]);
 
   const handleUpdateDescription = async (html: string) => {
     if (!node) return;
