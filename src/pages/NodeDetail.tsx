@@ -21,12 +21,14 @@ const NodeDetail: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [comments, setComments] = useState<NodeComment[]>([]);
   const [progress, setProgress] = useState(0);
+  const [loadingComments, setLoadingComments] = useState(false);
 
   useEffect(() => {
     if (!user || !nodeId) return;
     
     const loadNodeData = async () => {
       setLoading(true);
+      setError(null);
       try {
         // First get the node details
         const { data: nodeData, error: nodeError } = await supabase
@@ -47,7 +49,7 @@ const NodeDetail: React.FC = () => {
         // Fetch the tree data to ensure we have all context
         await fetchTreeData(nodeData.tree_id, user.id);
 
-        // Get node progress - using maybeSingle() to handle no progress case
+        // Get node progress
         const { data: progressData } = await supabase
           .from('node_progress')
           .select('score')
@@ -55,12 +57,22 @@ const NodeDetail: React.FC = () => {
           .eq('user_id', user.id)
           .maybeSingle();
 
-        // Get comments - removed users join since we'll handle it in the UI
-        const { data: commentsData } = await supabase
+        // Load comments
+        setLoadingComments(true);
+        const { data: commentsData, error: commentsError } = await supabase
           .from('node_comments')
-          .select('*')
+          .select(`
+            *,
+            users:user_id (
+              id,
+              email,
+              role
+            )
+          `)
           .eq('node_id', nodeId)
           .order('created_at', { ascending: false });
+
+        if (commentsError) throw commentsError;
 
         setNode({
           id: nodeData.id,
@@ -82,7 +94,7 @@ const NodeDetail: React.FC = () => {
           userId: comment.user_id,
           content: comment.content,
           createdAt: comment.created_at,
-          user: null // We'll handle user data display in the NodeComments component
+          user: comment.users
         })) || []);
 
       } catch (err) {
@@ -90,6 +102,7 @@ const NodeDetail: React.FC = () => {
         setError('Failed to load node data');
       } finally {
         setLoading(false);
+        setLoadingComments(false);
       }
     };
 
@@ -130,7 +143,14 @@ const NodeDetail: React.FC = () => {
           user_id: user.id,
           content
         })
-        .select()
+        .select(`
+          *,
+          users:user_id (
+            id,
+            email,
+            role
+          )
+        `)
         .single();
 
       if (error) throw error;
@@ -141,7 +161,7 @@ const NodeDetail: React.FC = () => {
         userId: data.user_id,
         content: data.content,
         createdAt: data.created_at,
-        user: null // We'll handle user data display in the NodeComments component
+        user: data.users
       }, ...prev]);
     } catch (err) {
       setError("Failed to add comment");
@@ -275,10 +295,16 @@ const NodeDetail: React.FC = () => {
 
               {/* Comments */}
               <div className="bg-white rounded-xl shadow-sm p-6">
-                <NodeComments
-                  comments={comments}
-                  onAddComment={handleAddComment}
-                />
+                {loadingComments ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-8 w-8 text-primary-600 animate-spin" />
+                  </div>
+                ) : (
+                  <NodeComments
+                    comments={comments}
+                    onAddComment={handleAddComment}
+                  />
+                )}
               </div>
             </div>
 
