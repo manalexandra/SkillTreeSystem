@@ -14,38 +14,6 @@ export const getCurrentSessionUser = async (): Promise<User | null> => {
   return null;
 };
 
-// Fetch users by IDs
-export const fetchUsersByIds = async (userIds: string[]): Promise<Map<string, User>> => {
-  if (!userIds.length) return new Map();
-
-  const { data, error } = await supabase
-    .from('users')
-    .select('id, email, role')
-    .in('id', userIds);
-
-  if (error) {
-    console.error('Error fetching users by IDs:', error);
-    return new Map();
-  }
-
-  return new Map(data.map(user => [user.id, user as User]));
-};
-
-// Fetch all users from Supabase
-export const fetchAllUsers = async (): Promise<User[]> => {
-  const { data, error } = await supabase
-    .from('users')
-    .select('id, email, role')
-    .order('email');
-    
-  if (error) {
-    console.error('Error fetching users:', error);
-    return [];
-  }
-  
-  return data as User[];
-};
-
 // Get completed trees for a user
 export const getCompletedTrees = async (userId: string): Promise<CompletedTree[]> => {
   const { data, error } = await supabase
@@ -131,6 +99,38 @@ export const isTreeCompletable = async (userId: string, treeId: string): Promise
   }
 
   return data;
+};
+
+// Fetch users by IDs
+export const fetchUsersByIds = async (userIds: string[]): Promise<Map<string, User>> => {
+  if (!userIds.length) return new Map();
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, email, role')
+    .in('id', userIds);
+
+  if (error) {
+    console.error('Error fetching users by IDs:', error);
+    return new Map();
+  }
+
+  return new Map(data.map(user => [user.id, user as User]));
+};
+
+// Fetch all users from Supabase
+export const fetchAllUsers = async (): Promise<User[]> => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, email, role')
+    .order('email');
+    
+  if (error) {
+    console.error('Error fetching users:', error);
+    return [];
+  }
+  
+  return data as User[];
 };
 
 // Fetch team members
