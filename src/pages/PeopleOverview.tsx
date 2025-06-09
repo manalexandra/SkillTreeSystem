@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
+import UserAvatar from '../components/common/UserAvatar';
 import { useAuth } from '../context/AuthContext';
 import { fetchAllUsers, getTeamMembers, getCompletedTrees } from '../services/userService';
 import { getAllUserProgress, supabase } from '../services/supabase';
@@ -115,8 +116,17 @@ const PeopleOverview: React.FC = () => {
     return count;
   };
 
+  const getDisplayName = (user: User) => {
+    if (user.firstName || user.lastName) {
+      return `${user.firstName || ''} ${user.lastName || ''}`.trim();
+    }
+    return user.email;
+  };
+
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const displayName = getDisplayName(user);
+    const matchesSearch = displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesTeam = selectedTeam === 'all' || 
       (teamMembers[selectedTeam] && teamMembers[selectedTeam].includes(user.id));
     const matchesBadge = selectedBadge === 'all' ||
@@ -247,12 +257,10 @@ const PeopleOverview: React.FC = () => {
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center">
-                    <div className="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-medium text-lg">
-                      {user.email.charAt(0).toUpperCase()}
-                    </div>
+                    <UserAvatar user={user} size="lg" />
                     <div className="ml-3">
                       <h3 className="font-medium text-gray-900 group-hover:text-primary-600 transition-colors">
-                        {user.email}
+                        {getDisplayName(user)}
                       </h3>
                       <div className="flex items-center gap-2 mt-1">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${

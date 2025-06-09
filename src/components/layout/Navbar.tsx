@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { signOut } from '../../services/supabase';
-import { Menu, X, GitBranchPlus, LogOut, User, ChevronDown, Users } from 'lucide-react';
+import { Menu, X, GitBranchPlus, LogOut, User, ChevronDown, Users, Settings } from 'lucide-react';
 
 const Navbar: React.FC = () => {
   const { user } = useAuth();
@@ -28,6 +28,16 @@ const Navbar: React.FC = () => {
   const handleSignOut = async () => {
     await signOut();
     navigate('/login');
+  };
+
+  const getProfileImage = () => {
+    // This will be updated when we implement the profile picture functionality
+    return null;
+  };
+
+  const getInitials = () => {
+    if (!user?.email) return 'U';
+    return user.email.charAt(0).toUpperCase();
   };
 
   return (
@@ -99,9 +109,17 @@ const Navbar: React.FC = () => {
                     aria-haspopup="true"
                   >
                     <span className="sr-only">Open user menu</span>
-                    <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-800 font-medium">
-                      {user.email.charAt(0).toUpperCase()}
-                    </div>
+                    {getProfileImage() ? (
+                      <img
+                        src={getProfileImage()!}
+                        alt="Profile"
+                        className="h-8 w-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-800 font-medium">
+                        {getInitials()}
+                      </div>
+                    )}
                     <span className="ml-2 text-gray-700">{user.email}</span>
                     <ChevronDown className="ml-1 h-4 w-4 text-gray-400" />
                   </button>
@@ -117,6 +135,17 @@ const Navbar: React.FC = () => {
                     <div className="block px-4 py-2 text-xs text-gray-500">
                       Role: {user.role}
                     </div>
+                    <Link
+                      to="/profile"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      role="menuitem"
+                      onClick={() => setIsProfileOpen(false)}
+                    >
+                      <div className="flex items-center">
+                        <User className="mr-2 h-4 w-4" />
+                        Profile
+                      </div>
+                    </Link>
                     <button
                       onClick={handleSignOut}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -216,9 +245,17 @@ const Navbar: React.FC = () => {
                 <div className="border-t border-gray-200 pt-4 pb-3">
                   <div className="flex items-center px-4">
                     <div className="flex-shrink-0">
-                      <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-800 font-medium">
-                        {user.email.charAt(0).toUpperCase()}
-                      </div>
+                      {getProfileImage() ? (
+                        <img
+                          src={getProfileImage()!}
+                          alt="Profile"
+                          className="h-10 w-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-800 font-medium">
+                          {getInitials()}
+                        </div>
+                      )}
                     </div>
                     <div className="ml-3">
                       <div className="text-base font-medium text-gray-800">
@@ -230,6 +267,16 @@ const Navbar: React.FC = () => {
                     </div>
                   </div>
                   <div className="mt-3 space-y-1">
+                    <Link
+                      to="/profile"
+                      className="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <div className="flex items-center">
+                        <User className="mr-2 h-5 w-5" />
+                        Profile
+                      </div>
+                    </Link>
                     <button
                       onClick={() => {
                         handleSignOut();

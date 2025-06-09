@@ -1,5 +1,6 @@
 import React from 'react';
 import { TeamMember, Team } from '../../types';
+import UserAvatar from '../common/UserAvatar';
 import { X, Users } from 'lucide-react';
 
 interface TeamMembersModalProps {
@@ -15,6 +16,14 @@ const TeamMembersModal: React.FC<TeamMembersModalProps> = ({
   loading,
   onClose,
 }) => {
+  const getDisplayName = (member: TeamMember) => {
+    if (!member.user) return 'Unknown User';
+    if (member.user.firstName || member.user.lastName) {
+      return `${member.user.firstName || ''} ${member.user.lastName || ''}`.trim();
+    }
+    return member.user.email;
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden">
@@ -44,11 +53,10 @@ const TeamMembersModal: React.FC<TeamMembersModalProps> = ({
               {members.map(member => (
                 <div key={member.userId} className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
                   <div className="flex items-center">
-                    <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-medium">
-                      {member.user?.email.charAt(0).toUpperCase()}
-                    </div>
+                    <UserAvatar user={member.user!} size="lg" />
                     <div className="ml-3">
-                      <div className="font-medium text-gray-900">{member.user?.email}</div>
+                      <div className="font-medium text-gray-900">{getDisplayName(member)}</div>
+                      <div className="text-sm text-gray-500">{member.user?.email}</div>
                       <div className="text-sm text-gray-500">
                         Joined {new Date(member.joinedAt).toLocaleDateString()}
                       </div>

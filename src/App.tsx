@@ -11,6 +11,7 @@ import RoadmapView from "./pages/RoadmapView";
 import AdminPanel from "./pages/AdminPanel";
 import PeopleOverview from './pages/PeopleOverview';
 import PersonDetail from './pages/PersonDetail';
+import Profile from './pages/Profile';
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/people" element={<PeopleOverview />} />
           <Route path="/people/:userId" element={<PersonDetail />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="*" element={<Navigate to="/\" replace />} />
         </Routes>
       </Router>

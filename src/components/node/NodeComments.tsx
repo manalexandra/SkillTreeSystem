@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import UserAvatar from '../common/UserAvatar';
 import type { NodeComment } from '../../types';
 import { MessageSquare, Send } from 'lucide-react';
 
@@ -20,6 +21,14 @@ const NodeComments: React.FC<NodeCommentsProps> = ({ comments, onAddComment }) =
     }
   };
 
+  const getDisplayName = (comment: NodeComment) => {
+    if (!comment.user) return 'Unknown User';
+    if (comment.user.firstName || comment.user.lastName) {
+      return `${comment.user.firstName || ''} ${comment.user.lastName || ''}`.trim();
+    }
+    return comment.user.email;
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 text-gray-700 mb-6">
@@ -32,12 +41,10 @@ const NodeComments: React.FC<NodeCommentsProps> = ({ comments, onAddComment }) =
         {comments.map((comment) => (
           <div key={comment.id} className="bg-white rounded-lg shadow-sm p-4">
             <div className="flex items-center gap-3 mb-2">
-              <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-medium">
-                {comment.user?.email.charAt(0).toUpperCase()}
-              </div>
+              <UserAvatar user={comment.user!} size="md" />
               <div>
                 <div className="font-medium text-gray-900">
-                  {comment.user?.email}
+                  {getDisplayName(comment)}
                 </div>
                 <div className="text-xs text-gray-500">
                   {new Date(comment.createdAt).toLocaleString()}

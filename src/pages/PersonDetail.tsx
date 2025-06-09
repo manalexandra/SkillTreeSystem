@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
+import UserAvatar from '../components/common/UserAvatar';
 import { useAuth } from '../context/AuthContext';
 import { User, SkillNode, CompletedTree } from '../types';
 import { fetchAllUsers, getTeamMembers, getCompletedTrees } from '../services/userService';
@@ -13,12 +14,18 @@ import {
   GitBranchPlus,
   Target,
   Calendar,
+  Mail,
+  User as UserIcon,
+  Shield,
+  Star,
+  Trophy,
+  Activity,
+  BookOpen,
   CheckCircle,
   XCircle,
   ChevronRight,
   Users,
-  Zap,
-  Trophy
+  Zap
 } from 'lucide-react';
 
 const PersonDetail: React.FC = () => {
@@ -73,6 +80,13 @@ const PersonDetail: React.FC = () => {
       inProgressSkills,
       completionRate: totalSkills > 0 ? Math.round((completedSkills / totalSkills) * 100) : 0
     };
+  };
+
+  const getDisplayName = (user: User) => {
+    if (user.firstName || user.lastName) {
+      return `${user.firstName || ''} ${user.lastName || ''}`.trim();
+    }
+    return user.email;
   };
 
   if (loading) {
@@ -134,12 +148,10 @@ const PersonDetail: React.FC = () => {
           <div className="p-6">
             <div className="flex items-start justify-between">
               <div className="flex items-center">
-                <div className="h-16 w-16 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-2xl">
-                  {user.email.charAt(0).toUpperCase()}
-                </div>
+                <UserAvatar user={user} size="xl" />
                 <div className="ml-4">
                   <h1 className="text-2xl font-bold text-gray-900">
-                    {user.email}
+                    {getDisplayName(user)}
                   </h1>
                   <div className="flex items-center mt-2">
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
@@ -150,8 +162,12 @@ const PersonDetail: React.FC = () => {
                       {user.role}
                     </span>
                     <span className="flex items-center text-gray-500 text-sm ml-4">
+                      <Mail className="h-4 w-4 mr-1" />
+                      {user.email}
+                    </span>
+                    <span className="flex items-center text-gray-500 text-sm ml-4">
                       <Calendar className="h-4 w-4 mr-1" />
-                      Joined June 2023
+                      Joined {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Recently'}
                     </span>
                   </div>
                 </div>

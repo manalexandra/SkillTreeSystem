@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSkillTreeStore } from '../stores/skillTreeStore';
 import SkillTreeView from '../components/skill-tree/SkillTreeView';
+import UserAvatar from '../components/common/UserAvatar';
 import Navbar from '../components/layout/Navbar';
 import { 
   GitBranchPlus, 
@@ -69,6 +70,14 @@ const Dashboard: React.FC = () => {
     return nodes.find(node => !node.completed && (!node.progress || node.progress < 100));
   };
 
+  const getDisplayName = () => {
+    if (!user) return 'User';
+    if (user.firstName || user.lastName) {
+      return `${user.firstName || ''} ${user.lastName || ''}`.trim();
+    }
+    return user.email.split('@')[0];
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
       <Navbar />
@@ -79,14 +88,10 @@ const Dashboard: React.FC = () => {
           showContent ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
         }`}>
           <div className="flex items-center gap-3 mb-2">
-            <div className="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center">
-              <span className="text-xl font-bold text-primary-600">
-                {user?.email.charAt(0).toUpperCase()}
-              </span>
-            </div>
+            {user && <UserAvatar user={user} size="lg" />}
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                Welcome back!
+                Welcome back, {getDisplayName()}!
               </h1>
               <p className="text-gray-600">
                 Continue your learning journey
