@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Bold, Italic, List, ListOrdered, Quote, Undo, Redo, Heading1, Heading2, Heading3, Link as LinkIcon, Image as ImageIcon, Code, Strikethrough } from 'lucide-react';
@@ -108,6 +108,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [linkData, setLinkData] = useState({ url: '', text: '' });
+  const [isInitialized, setIsInitialized] = useState(false);
+  const editorRef = useRef<HTMLDivElement>(null);
 
   const editor = useEditor({
     extensions: [
@@ -119,6 +121,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     ],
     content: content || '<p></p>',
     editable: !readOnly,
+    autofocus: !readOnly ? 'end' : false,
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
       const json = editor.getJSON();
@@ -126,19 +129,81 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none min-h-[200px] p-4',
+        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none min-h-[200px] p-4 cursor-text',
         'data-placeholder': placeholder,
+        spellcheck: 'true',
+      },
+      handleClick: (view, pos, event) => {
+        // Ensure editor gets focus when clicked
+        if (!readOnly) {
+          view.focus();
+        }
+        return false;
+      },
+      handleKeyDown: (view, event) => {
+        // Handle common keyboard shortcuts
+        if (event.ctrlKey || event.metaKey) {
+          switch (event.key) {
+            case 'b':
+              event.preventDefault();
+              editor?.chain().focus().toggleBold().run();
+              return true;
+            case 'i':
+              event.preventDefault();
+              editor?.chain().focus().toggleItalic().run();
+              return true;
+            case 'z':
+              if (event.shiftKey) {
+                event.preventDefault();
+                editor?.chain().focus().redo().run();
+              } else {
+                event.preventDefault();
+                editor?.chain().focus().undo().run();
+              }
+              return true;
+          }
+        }
+        return false;
       },
     },
     immediatelyRender: false,
+    shouldRerenderOnTransaction: false,
   });
 
-  // Update editor content when prop changes
+  // Initialize editor content and focus
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content || '<p></p>', false);
+    if (editor && !isInitialized) {
+      // Set initial content
+      if (content && content !== '<p></p>') {
+        editor.commands.setContent(content, false);
+      }
+      
+      // Focus the editor if not readonly
+      if (!readOnly) {
+        setTimeout(() => {
+          editor.commands.focus('end');
+        }, 100);
+      }
+      
+      setIsInitialized(true);
     }
-  }, [content, editor]);
+  }, [editor, content, readOnly, isInitialized]);
+
+  // Update editor content when prop changes (but not on every render)
+  useEffect(() => {
+    if (editor && isInitialized && content !== editor.getHTML()) {
+      const { from, to } = editor.state.selection;
+      editor.commands.setContent(content || '<p></p>', false);
+      // Restore cursor position if possible
+      if (from === to && from > 0) {
+        try {
+          editor.commands.setTextSelection(Math.min(from, editor.state.doc.content.size));
+        } catch (e) {
+          // Ignore cursor position errors
+        }
+      }
+    }
+  }, [content, editor, isInitialized]);
 
   const handleImageUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -231,6 +296,12 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     }
   }, [editor]);
 
+  const handleEditorClick = useCallback(() => {
+    if (!readOnly && editor) {
+      editor.commands.focus();
+    }
+  }, [editor, readOnly]);
+
   if (!editor) {
     return (
       <div className="border rounded-lg p-4 min-h-[200px] flex items-center justify-center">
@@ -248,7 +319,11 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   }> = ({ onClick, active, disabled, children, title }) => (
     <button
       type="button"
-      onClick={onClick}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClick();
+      }}
       disabled={disabled}
       title={title}
       className={`p-2 rounded-lg transition-colors ${
@@ -270,7 +345,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             <MenuButton
               onClick={() => editor.chain().focus().toggleBold().run()}
               active={editor.isActive('bold')}
-              title="Bold"
+              title="Bold (Ctrl+B)"
             >
               <Bold className="h-4 w-4" />
             </MenuButton>
@@ -278,7 +353,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             <MenuButton
               onClick={() => editor.chain().focus().toggleItalic().run()}
               active={editor.isActive('italic')}
-              title="Italic"
+              title="Italic (Ctrl+I)"
             >
               <Italic className="h-4 w-4" />
             </MenuButton>
@@ -391,7 +466,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             <MenuButton
               onClick={() => editor.chain().focus().undo().run()}
               disabled={!editor.can().undo()}
-              title="Undo"
+              title="Undo (Ctrl+Z)"
             >
               <Undo className="h-4 w-4" />
             </MenuButton>
@@ -399,7 +474,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             <MenuButton
               onClick={() => editor.chain().focus().redo().run()}
               disabled={!editor.can().redo()}
-              title="Redo"
+              title="Redo (Ctrl+Shift+Z)"
             >
               <Redo className="h-4 w-4" />
             </MenuButton>
@@ -407,13 +482,20 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </div>
       )}
       
-      <div className="relative">
+      <div 
+        className="relative cursor-text"
+        onClick={handleEditorClick}
+        ref={editorRef}
+      >
         <EditorContent 
           editor={editor} 
-          className={`${readOnly ? 'cursor-default' : ''}`}
+          className={`${readOnly ? 'cursor-default' : 'cursor-text'}`}
         />
         {!readOnly && editor.isEmpty && (
-          <div className="absolute top-4 left-4 text-gray-400 pointer-events-none">
+          <div 
+            className="absolute top-4 left-4 text-gray-400 pointer-events-none select-none"
+            onClick={handleEditorClick}
+          >
             {placeholder}
           </div>
         )}
@@ -429,7 +511,11 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
       <style jsx>{`
         .ProseMirror {
-          outline: none;
+          outline: none !important;
+          cursor: text;
+        }
+        .ProseMirror:focus {
+          outline: none !important;
         }
         .ProseMirror p.is-editor-empty:first-child::before {
           content: attr(data-placeholder);
@@ -437,6 +523,38 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           color: #adb5bd;
           pointer-events: none;
           height: 0;
+        }
+        .ProseMirror p {
+          margin: 0.5em 0;
+        }
+        .ProseMirror h1, .ProseMirror h2, .ProseMirror h3 {
+          margin: 1em 0 0.5em 0;
+        }
+        .ProseMirror ul, .ProseMirror ol {
+          margin: 0.5em 0;
+          padding-left: 1.5em;
+        }
+        .ProseMirror blockquote {
+          border-left: 4px solid #e5e7eb;
+          margin: 1em 0;
+          padding-left: 1em;
+          color: #6b7280;
+        }
+        .ProseMirror code {
+          background-color: #f3f4f6;
+          padding: 0.2em 0.4em;
+          border-radius: 0.25em;
+          font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+        .ProseMirror a {
+          color: #2563eb;
+          text-decoration: underline;
+        }
+        .ProseMirror img {
+          max-width: 100%;
+          height: auto;
+          border-radius: 0.5em;
+          margin: 1em 0;
         }
       `}</style>
     </div>
