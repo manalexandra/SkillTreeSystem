@@ -66,6 +66,12 @@ interface RelatedLink {
   description?: string;
 }
 
+// UUID validation function
+const isValidUUID = (str: string): boolean => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+};
+
 const NodeDetail: React.FC = () => {
   const { nodeId } = useParams<{ nodeId: string }>();
   const { user } = useAuth();
@@ -100,6 +106,14 @@ const NodeDetail: React.FC = () => {
 
   useEffect(() => {
     if (!user || !nodeId) return;
+    
+    // Validate UUID format before making any database calls
+    if (!isValidUUID(nodeId)) {
+      setLoading(false);
+      setNode(null);
+      setError('Invalid node ID format');
+      return;
+    }
     
     const loadNodeData = async () => {
       setLoading(true);
