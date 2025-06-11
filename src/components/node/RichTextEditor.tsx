@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { Bold, Italic, Underline, List, ListOrdered, Quote, Undo, Redo, Heading1, Heading2, Heading3, Link as LinkIcon, Image as ImageIcon, Table, Code, AlignLeft, AlignCenter, AlignRight, Strikethrough, Highlighter as Highlight, Type, Palette, Upload, X, Check } from 'lucide-react';
+import { Bold, Italic, List, ListOrdered, Quote, Undo, Redo, Heading1, Heading2, Heading3, Link as LinkIcon, Image as ImageIcon, Code, Strikethrough } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 import { useAuth } from '../../context/AuthContext';
 
@@ -117,7 +117,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         },
       }),
     ],
-    content,
+    content: content || '<p></p>',
     editable: !readOnly,
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
@@ -126,14 +126,17 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     },
     editorProps: {
       attributes: {
-        class: 'prose max-w-none focus:outline-none min-h-[200px] p-4',
+        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none min-h-[200px] p-4',
+        'data-placeholder': placeholder,
       },
     },
+    immediatelyRender: false,
   });
 
+  // Update editor content when prop changes
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content);
+      editor.commands.setContent(content || '<p></p>', false);
     }
   }, [content, editor]);
 
@@ -228,16 +231,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     }
   }, [editor]);
 
-  const insertTable = useCallback(() => {
-    if (!editor) return;
-    
-    editor.chain().focus().insertTable({ 
-      rows: 3, 
-      cols: 3, 
-      withHeaderRow: true 
-    }).run();
-  }, [editor]);
-
   if (!editor) {
     return (
       <div className="border rounded-lg p-4 min-h-[200px] flex items-center justify-center">
@@ -254,6 +247,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     title?: string;
   }> = ({ onClick, active, disabled, children, title }) => (
     <button
+      type="button"
       onClick={onClick}
       disabled={disabled}
       title={title}
@@ -390,13 +384,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 )}
               </MenuButton>
             </label>
-
-            <MenuButton
-              onClick={insertTable}
-              title="Insert Table"
-            >
-              <Table className="h-4 w-4" />
-            </MenuButton>
           </div>
           
           {/* Undo/Redo */}
@@ -420,11 +407,17 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </div>
       )}
       
-      <EditorContent 
-        editor={editor} 
-        className={`${readOnly ? 'cursor-default' : ''}`}
-        placeholder={placeholder}
-      />
+      <div className="relative">
+        <EditorContent 
+          editor={editor} 
+          className={`${readOnly ? 'cursor-default' : ''}`}
+        />
+        {!readOnly && editor.isEmpty && (
+          <div className="absolute top-4 left-4 text-gray-400 pointer-events-none">
+            {placeholder}
+          </div>
+        )}
+      </div>
 
       <LinkModal
         isOpen={showLinkModal}
@@ -433,6 +426,19 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         initialUrl={linkData.url}
         initialText={linkData.text}
       />
+
+      <style jsx>{`
+        .ProseMirror {
+          outline: none;
+        }
+        .ProseMirror p.is-editor-empty:first-child::before {
+          content: attr(data-placeholder);
+          float: left;
+          color: #adb5bd;
+          pointer-events: none;
+          height: 0;
+        }
+      `}</style>
     </div>
   );
 };
