@@ -44,17 +44,12 @@ interface FormData {
   orderIndex: number;
   status: 'draft' | 'published' | 'archived';
   visibility: 'public' | 'private' | 'team';
-  seoTitle: string;
-  seoDescription: string;
-  keywords: string[];
 }
 
 interface FormErrors {
   title?: string;
   description?: string;
   orderIndex?: string;
-  seoTitle?: string;
-  seoDescription?: string;
   general?: string;
 }
 
@@ -81,7 +76,6 @@ const NodeModal: React.FC<NodeModalProps> = ({
   const [errors, setErrors] = useState<FormErrors>({});
   const [success, setSuccess] = useState<string | null>(null);
   const [availableNodes, setAvailableNodes] = useState<SkillNode[]>([]);
-  const [keywordInput, setKeywordInput] = useState('');
   
   // Links state
   const [links, setLinks] = useState<NodeLink[]>([]);
@@ -105,10 +99,7 @@ const NodeModal: React.FC<NodeModalProps> = ({
     parentId: null,
     orderIndex: 0,
     status: 'published',
-    visibility: 'public',
-    seoTitle: '',
-    seoDescription: '',
-    keywords: []
+    visibility: 'public'
   });
 
   const isEditMode = !!node;
@@ -125,10 +116,7 @@ const NodeModal: React.FC<NodeModalProps> = ({
           parentId: node.parentId || null,
           orderIndex: node.orderIndex || 0,
           status: node.status || 'published',
-          visibility: node.visibility || 'public',
-          seoTitle: node.seoTitle || '',
-          seoDescription: node.seoDescription || '',
-          keywords: node.keywords || []
+          visibility: node.visibility || 'public'
         });
         loadNodeLinks(node.id);
         loadNodeImages(node.id);
@@ -140,17 +128,13 @@ const NodeModal: React.FC<NodeModalProps> = ({
           parentId: parentNode?.id || null,
           orderIndex: 0,
           status: 'published',
-          visibility: 'public',
-          seoTitle: '',
-          seoDescription: '',
-          keywords: []
+          visibility: 'public'
         });
         setLinks([]);
         setImages([]);
       }
       setErrors({});
       setSuccess(null);
-      setKeywordInput('');
       setShowLinkForm(false);
       setEditingLinkId(null);
       resetLinkForm();
@@ -284,16 +268,6 @@ const NodeModal: React.FC<NodeModalProps> = ({
       newErrors.orderIndex = 'Order index must be 0 or greater';
     }
 
-    // SEO title validation
-    if (formData.seoTitle && formData.seoTitle.length > 60) {
-      newErrors.seoTitle = 'SEO title should be less than 60 characters for optimal display';
-    }
-
-    // SEO description validation
-    if (formData.seoDescription && formData.seoDescription.length > 160) {
-      newErrors.seoDescription = 'SEO description should be less than 160 characters for optimal display';
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -325,9 +299,6 @@ const NodeModal: React.FC<NodeModalProps> = ({
         order_index: formData.orderIndex,
         status: formData.status,
         visibility: formData.visibility,
-        seo_title: formData.seoTitle.trim() || null,
-        seo_description: formData.seoDescription.trim() || null,
-        keywords: formData.keywords.length > 0 ? formData.keywords : null,
         last_modified_by: user.id,
         last_modified_at: new Date().toISOString()
       };
@@ -453,32 +424,6 @@ const NodeModal: React.FC<NodeModalProps> = ({
       if (error) throw error;
     } catch (err) {
       console.error('Error saving node links:', err);
-    }
-  };
-
-  // Handle keyword management
-  const addKeyword = () => {
-    const keyword = keywordInput.trim().toLowerCase();
-    if (keyword && !formData.keywords.includes(keyword)) {
-      setFormData(prev => ({
-        ...prev,
-        keywords: [...prev.keywords, keyword]
-      }));
-      setKeywordInput('');
-    }
-  };
-
-  const removeKeyword = (keywordToRemove: string) => {
-    setFormData(prev => ({
-      ...prev,
-      keywords: prev.keywords.filter(k => k !== keywordToRemove)
-    }));
-  };
-
-  const handleKeywordKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      addKeyword();
     }
   };
 
@@ -745,31 +690,11 @@ const NodeModal: React.FC<NodeModalProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Auto-generate SEO title from title
-  useEffect(() => {
-    if (formData.title && !formData.seoTitle) {
-      setFormData(prev => ({
-        ...prev,
-        seoTitle: prev.title.slice(0, 60)
-      }));
-    }
-  }, [formData.title]);
-
-  // Auto-generate SEO description from description
-  useEffect(() => {
-    if (formData.description && !formData.seoDescription) {
-      setFormData(prev => ({
-        ...prev,
-        seoDescription: prev.description.slice(0, 160)
-      }));
-    }
-  }, [formData.description]);
-
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="p-6 bg-gradient-to-r from-primary-600 to-primary-700">
           <div className="flex justify-between items-center">
@@ -819,7 +744,7 @@ const NodeModal: React.FC<NodeModalProps> = ({
               </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Left Column - Basic Information */}
               <div className="space-y-6">
                 <div>
@@ -955,10 +880,8 @@ const NodeModal: React.FC<NodeModalProps> = ({
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Middle Column - Related Links */}
-              <div className="space-y-6">
+                {/* Related Links */}
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-lg font-semibold text-gray-900 flex items-center">
@@ -1084,7 +1007,7 @@ const NodeModal: React.FC<NodeModalProps> = ({
                 </div>
               </div>
 
-              {/* Right Column - Images & SEO */}
+              {/* Right Column - Images & Metadata */}
               <div className="space-y-6">
                 {/* Image Upload */}
                 <div>
@@ -1166,104 +1089,6 @@ const NodeModal: React.FC<NodeModalProps> = ({
                       ))}
                     </div>
                   )}
-                </div>
-
-                {/* SEO Settings */}
-                <div>
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <Globe className="h-5 w-5 mr-2" />
-                    SEO Settings
-                  </h4>
-
-                  {/* SEO Title */}
-                  <div className="mb-4">
-                    <label htmlFor="seoTitle" className="block text-sm font-medium text-gray-700 mb-1">
-                      SEO Title
-                    </label>
-                    <input
-                      type="text"
-                      id="seoTitle"
-                      value={formData.seoTitle}
-                      onChange={(e) => setFormData(prev => ({ ...prev, seoTitle: e.target.value }))}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-                        errors.seoTitle ? 'border-red-300' : 'border-gray-300'
-                      }`}
-                      placeholder="SEO-optimized title"
-                      maxLength={60}
-                    />
-                    {errors.seoTitle && (
-                      <p className="mt-1 text-sm text-red-600">{errors.seoTitle}</p>
-                    )}
-                    <p className="mt-1 text-xs text-gray-500">
-                      {formData.seoTitle.length}/60 characters
-                    </p>
-                  </div>
-
-                  {/* SEO Description */}
-                  <div className="mb-4">
-                    <label htmlFor="seoDescription" className="block text-sm font-medium text-gray-700 mb-1">
-                      SEO Description
-                    </label>
-                    <textarea
-                      id="seoDescription"
-                      value={formData.seoDescription}
-                      onChange={(e) => setFormData(prev => ({ ...prev, seoDescription: e.target.value }))}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-                        errors.seoDescription ? 'border-red-300' : 'border-gray-300'
-                      }`}
-                      placeholder="SEO-optimized description"
-                      rows={3}
-                      maxLength={160}
-                    />
-                    {errors.seoDescription && (
-                      <p className="mt-1 text-sm text-red-600">{errors.seoDescription}</p>
-                    )}
-                    <p className="mt-1 text-xs text-gray-500">
-                      {formData.seoDescription.length}/160 characters
-                    </p>
-                  </div>
-
-                  {/* Keywords */}
-                  <div className="mb-4">
-                    <label htmlFor="keywords" className="block text-sm font-medium text-gray-700 mb-1">
-                      Keywords
-                    </label>
-                    <div className="flex gap-2 mb-2">
-                      <input
-                        type="text"
-                        value={keywordInput}
-                        onChange={(e) => setKeywordInput(e.target.value)}
-                        onKeyPress={handleKeywordKeyPress}
-                        className="flex-grow px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        placeholder="Add keyword"
-                      />
-                      <button
-                        type="button"
-                        onClick={addKeyword}
-                        className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-                      >
-                        Add
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {formData.keywords.map(keyword => (
-                        <span
-                          key={keyword}
-                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800"
-                        >
-                          <Hash className="h-3 w-3 mr-1" />
-                          {keyword}
-                          <button
-                            type="button"
-                            onClick={() => removeKeyword(keyword)}
-                            className="ml-1 text-primary-600 hover:text-primary-800"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
                 </div>
 
                 {/* Metadata */}
