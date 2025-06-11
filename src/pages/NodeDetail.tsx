@@ -3,10 +3,10 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useSkillTreeStore } from "../stores/skillTreeStore";
 import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/layout/Navbar";
-import NodeDescriptionEditor from "../components/node/NodeDescriptionEditor";
 import NodeProgress from "../components/node/NodeProgress";
 import NodeComments from "../components/node/NodeComments";
-import type { SkillNode, NodeComment, User, NodeLink } from "../types";
+import RichTextEditor from "../components/node/RichTextEditor";
+import type { SkillNode, NodeComment, User, NodeLink, NodeImage } from "../types";
 import { 
   ArrowLeft, 
   GitBranchPlus, 
@@ -78,6 +78,8 @@ const NodeDetail: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [comments, setComments] = useState<NodeComment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
+  const [images, setImages] = useState<NodeImage[]>([]);
+  const [loadingImages, setLoadingImages] = useState(false);
 
   // Admin-specific state
   const [metadata, setMetadata] = useState<NodeMetadata>({
@@ -137,6 +139,7 @@ const NodeDetail: React.FC = () => {
           title: nodeData.title,
           description: nodeData.description,
           descriptionHtml: nodeData.description_html,
+          contentHtml: nodeData.content_html,
           orderIndex: nodeData.order_index,
           createdAt: nodeData.created_at,
           progress: progressData?.score || 0,
@@ -164,6 +167,9 @@ const NodeDetail: React.FC = () => {
 
         // Load related links from database
         await loadNodeLinks(nodeId);
+
+        // Load node images
+        await loadNodeImages(nodeId);
 
         // Load comments if user has access
         if (isManager || nodeWithProgress.completed) {
@@ -211,6 +217,48 @@ const NodeDetail: React.FC = () => {
     } finally {
       setLoadingLinks(false);
     }
+  };
+
+  // Load node images from database
+  const loadNodeImages = async (nodeId: string) => {
+    setLoadingImages(true);
+    try {
+      const { data, error } = await supabase
+        .from('node_images')
+        .select('*')
+        .eq('node_id', nodeId)
+        .order('uploaded_at');
+
+      if (error) throw error;
+
+      const nodeImages: NodeImage[] = (data || []).map(image => ({
+        id: image.id,
+        nodeId: image.node_id,
+        filename: image.filename,
+        originalName: image.original_name,
+        fileSize: image.file_size,
+        mimeType: image.mime_type,
+        storagePath: image.storage_path,
+        altText: image.alt_text,
+        caption: image.caption,
+        uploadedBy: image.uploaded_by,
+        uploadedAt: image.uploaded_at
+      }));
+
+      setImages(nodeImages);
+    } catch (err) {
+      console.error('Error loading node images:', err);
+    } finally {
+      setLoadingImages(false);
+    }
+  };
+
+  // Get image URL from Supabase storage
+  const getImageUrl = (image: NodeImage): string => {
+    const { data } = supabase.storage
+      .from('node-images')
+      .getPublicUrl(image.storagePath);
+    return data.publicUrl;
   };
 
   const loadComments = async () => {
@@ -292,8 +340,8 @@ const NodeDetail: React.FC = () => {
         user: userData || {
           id: user.id,
           email: user.email,
-          first_name: user.first_name || 'Unknown',
-          last_name: user.last_name || 'User'
+          first_name: user.firstName || 'Unknown',
+          last_name: user.lastName || 'User'
         }
       };
 
@@ -312,14 +360,15 @@ const NodeDetail: React.FC = () => {
       const { error } = await supabase
         .from('skill_nodes')
         .update({
-          description_html: html,
-          title: node.title
+          content_html: html,
+          last_modified_by: user?.id,
+          last_modified_at: new Date().toISOString()
         })
         .eq('id', node.id);
 
       if (error) throw error;
       
-      setNode(prev => prev ? { ...prev, descriptionHtml: html } : null);
+      setNode(prev => prev ? { ...prev, contentHtml: html } : null);
     } catch (err) {
       setError("Failed to update description");
       console.error(err);
@@ -784,15 +833,61 @@ const NodeDetail: React.FC = () => {
                     </div>
                   )}
                 </div>
-                <NodeDescriptionEditor
-                  content={node.descriptionHtml || node.description}
+                <RichTextEditor
+                  content={node.contentHtml || node.descriptionHtml || node.description || ''}
                   onChange={handleUpdateDescription}
                   readOnly={!isManager || !isEditing}
+                  nodeId={nodeId}
+                  placeholder={isEditing ? "Add a detailed description of this skill..." : ""}
+                  className="min-h-[300px]"
                 />
                 {saving && (
                   <p className="text-sm text-gray-500 mt-2">Saving changes...</p>
                 )}
               </div>
+
+              {/* Images Gallery */}
+              {images.length > 0 && (
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <ImageIcon className="h-5 w-5 mr-2" />
+                    Images ({images.length})
+                  </h3>
+                  
+                  {loadingImages ? (
+                    <div className="text-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary-600" />
+                      <p className="text-gray-500 mt-2">Loading images...</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {images.map(image => (
+                        <div key={image.id} className="group relative">
+                          <img
+                            src={getImageUrl(image)}
+                            alt={image.altText || image.originalName}
+                            className="w-full h-48 object-cover rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                          />
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded-lg flex items-center justify-center">
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => window.open(getImageUrl(image), '_blank')}
+                                className="p-2 bg-white rounded-full shadow-lg hover:bg-gray-50 transition-colors"
+                                title="View full size"
+                              >
+                                <Eye className="h-5 w-5 text-gray-700" />
+                              </button>
+                            </div>
+                          </div>
+                          {image.caption && (
+                            <p className="mt-2 text-sm text-gray-600 text-center">{image.caption}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Related Links */}
               <div className="bg-white rounded-xl shadow-sm p-6">
