@@ -1,33 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { 
-  Bold, 
-  Italic, 
-  Underline,
-  List, 
-  ListOrdered, 
-  Quote, 
-  Undo, 
-  Redo,
-  Heading1,
-  Heading2,
-  Heading3,
-  Link as LinkIcon,
-  Image as ImageIcon,
-  Table,
-  Code,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  Strikethrough,
-  Highlight,
-  Type,
-  Palette,
-  Upload,
-  X,
-  Check
-} from 'lucide-react';
+import { Bold, Italic, Underline, List, ListOrdered, Quote, Undo, Redo, Heading1, Heading2, Heading3, Link as LinkIcon, Image as ImageIcon, Table, Code, AlignLeft, AlignCenter, AlignRight, Strikethrough, Highlighter as Highlight, Type, Palette, Upload, X, Check } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 import { useAuth } from '../../context/AuthContext';
 
