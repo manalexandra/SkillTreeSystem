@@ -6,7 +6,7 @@ import Navbar from "../components/layout/Navbar";
 import NodeDescriptionEditor from "../components/node/NodeDescriptionEditor";
 import NodeProgress from "../components/node/NodeProgress";
 import NodeComments from "../components/node/NodeComments";
-import type { SkillNode, NodeComment, User } from "../types";
+import type { SkillNode, NodeComment, User, NodeLink } from "../types";
 import { 
   ArrowLeft, 
   GitBranchPlus, 
@@ -58,14 +58,6 @@ interface NodeMetadata {
   version: number;
 }
 
-interface RelatedLink {
-  id: string;
-  title: string;
-  url: string;
-  type: 'internal' | 'external';
-  description?: string;
-}
-
 // UUID validation function
 const isValidUUID = (str: string): boolean => {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -95,12 +87,13 @@ const NodeDetail: React.FC = () => {
   });
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
-  const [relatedLinks, setRelatedLinks] = useState<RelatedLink[]>([]);
+  const [relatedLinks, setRelatedLinks] = useState<NodeLink[]>([]);
   const [newLink, setNewLink] = useState({ title: '', url: '', type: 'external' as 'internal' | 'external', description: '' });
   const [showLinkForm, setShowLinkForm] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [versionHistory, setVersionHistory] = useState<any[]>([]);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [loadingLinks, setLoadingLinks] = useState(false);
 
   const isManager = user?.role === 'manager';
 
@@ -169,16 +162,8 @@ const NodeDetail: React.FC = () => {
         // Load tags (mock data)
         setTags(['skill', 'learning', 'development']);
 
-        // Load related links (mock data)
-        setRelatedLinks([
-          {
-            id: '1',
-            title: 'Related Documentation',
-            url: 'https://example.com/docs',
-            type: 'external',
-            description: 'Additional learning resources'
-          }
-        ]);
+        // Load related links from database
+        await loadNodeLinks(nodeId);
 
         // Load comments if user has access
         if (isManager || nodeWithProgress.completed) {
@@ -194,6 +179,39 @@ const NodeDetail: React.FC = () => {
 
     loadNodeData();
   }, [nodeId, user, userProgress, isManager]);
+
+  // Load node links from database
+  const loadNodeLinks = async (nodeId: string) => {
+    setLoadingLinks(true);
+    try {
+      const { data, error } = await supabase
+        .from('node_links')
+        .select('*')
+        .eq('node_id', nodeId)
+        .order('order_index');
+
+      if (error) throw error;
+
+      const links: NodeLink[] = (data || []).map(link => ({
+        id: link.id,
+        nodeId: link.node_id,
+        title: link.title,
+        url: link.url,
+        description: link.description,
+        linkType: link.link_type,
+        orderIndex: link.order_index,
+        createdBy: link.created_by,
+        createdAt: link.created_at
+      }));
+
+      setRelatedLinks(links);
+    } catch (err) {
+      console.error('Error loading node links:', err);
+      setError('Failed to load related links');
+    } finally {
+      setLoadingLinks(false);
+    }
+  };
 
   const loadComments = async () => {
     if (!nodeId) return;
@@ -374,23 +392,61 @@ const NodeDetail: React.FC = () => {
     setTags(prev => prev.filter(tag => tag !== tagToRemove));
   };
 
-  const handleAddLink = () => {
-    if (newLink.title.trim() && newLink.url.trim()) {
-      const link: RelatedLink = {
-        id: Date.now().toString(),
-        title: newLink.title.trim(),
-        url: newLink.url.trim(),
-        type: newLink.type,
-        description: newLink.description.trim() || undefined
+  const handleAddLink = async () => {
+    if (!newLink.title.trim() || !newLink.url.trim() || !user || !nodeId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('node_links')
+        .insert({
+          node_id: nodeId,
+          title: newLink.title.trim(),
+          url: newLink.url.trim(),
+          description: newLink.description.trim() || null,
+          link_type: newLink.type,
+          order_index: relatedLinks.length,
+          created_by: user.id
+        })
+        .select('*')
+        .single();
+
+      if (error) throw error;
+
+      const link: NodeLink = {
+        id: data.id,
+        nodeId: data.node_id,
+        title: data.title,
+        url: data.url,
+        description: data.description,
+        linkType: data.link_type,
+        orderIndex: data.order_index,
+        createdBy: data.created_by,
+        createdAt: data.created_at
       };
+
       setRelatedLinks(prev => [...prev, link]);
       setNewLink({ title: '', url: '', type: 'external', description: '' });
       setShowLinkForm(false);
+    } catch (err) {
+      console.error('Error adding link:', err);
+      setError('Failed to add link');
     }
   };
 
-  const handleRemoveLink = (linkId: string) => {
-    setRelatedLinks(prev => prev.filter(link => link.id !== linkId));
+  const handleRemoveLink = async (linkId: string) => {
+    try {
+      const { error } = await supabase
+        .from('node_links')
+        .delete()
+        .eq('id', linkId);
+
+      if (error) throw error;
+
+      setRelatedLinks(prev => prev.filter(link => link.id !== linkId));
+    } catch (err) {
+      console.error('Error removing link:', err);
+      setError('Failed to remove link');
+    }
   };
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -802,43 +858,50 @@ const NodeDetail: React.FC = () => {
                   </div>
                 )}
 
-                <div className="space-y-3">
-                  {relatedLinks.map(link => (
-                    <div key={link.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
-                      <div className="flex items-center gap-3">
-                        {link.type === 'external' ? (
-                          <ExternalLink className="h-4 w-4 text-gray-400" />
-                        ) : (
-                          <LinkIcon className="h-4 w-4 text-gray-400" />
-                        )}
-                        <div>
-                          <a
-                            href={link.url}
-                            target={link.type === 'external' ? '_blank' : '_self'}
-                            rel={link.type === 'external' ? 'noopener noreferrer' : undefined}
-                            className="font-medium text-primary-600 hover:text-primary-700"
-                          >
-                            {link.title}
-                          </a>
-                          {link.description && (
-                            <p className="text-sm text-gray-500">{link.description}</p>
+                {loadingLinks ? (
+                  <div className="text-center py-4">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary-600" />
+                    <p className="text-gray-500 mt-2">Loading links...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {relatedLinks.map(link => (
+                      <div key={link.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                        <div className="flex items-center gap-3">
+                          {link.linkType === 'external' ? (
+                            <ExternalLink className="h-4 w-4 text-gray-400" />
+                          ) : (
+                            <LinkIcon className="h-4 w-4 text-gray-400" />
                           )}
+                          <div>
+                            <a
+                              href={link.url}
+                              target={link.linkType === 'external' ? '_blank' : '_self'}
+                              rel={link.linkType === 'external' ? 'noopener noreferrer' : undefined}
+                              className="font-medium text-primary-600 hover:text-primary-700"
+                            >
+                              {link.title}
+                            </a>
+                            {link.description && (
+                              <p className="text-sm text-gray-500">{link.description}</p>
+                            )}
+                          </div>
                         </div>
+                        {isManager && isEditing && (
+                          <button
+                            onClick={() => handleRemoveLink(link.id)}
+                            className="p-1 text-gray-400 hover:text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
-                      {isManager && isEditing && (
-                        <button
-                          onClick={() => handleRemoveLink(link.id)}
-                          className="p-1 text-gray-400 hover:text-red-600"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  {relatedLinks.length === 0 && (
-                    <p className="text-gray-500 text-center py-4">No related links available</p>
-                  )}
-                </div>
+                    ))}
+                    {relatedLinks.length === 0 && (
+                      <p className="text-gray-500 text-center py-4">No related links available</p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Comments Section */}
