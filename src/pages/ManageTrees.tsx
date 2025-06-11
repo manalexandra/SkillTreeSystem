@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSkillTreeStore } from '../stores/skillTreeStore';
 import Navbar from '../components/layout/Navbar';
 import SkillTreeView from '../components/skill-tree/SkillTreeView';
-import SkillNodeForm from '../components/skill-tree/SkillNodeForm';
+import NodeModal from '../components/skill-tree/NodeModal';
 import CreateTreeForm from '../components/skill-tree/CreateTreeForm';
 import EditTreeForm from '../components/skill-tree/EditTreeForm';
 import { Plus, Edit, GitBranchPlus, TreeDeciduous, Search, ChevronRight, Users, CheckCircle, Trash2, AlertTriangle, X } from 'lucide-react';
@@ -23,8 +23,9 @@ const ManageTrees: React.FC = () => {
   const { trees, nodes, fetchTrees, deleteTree, updateTree } = useSkillTreeStore();
   const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
   const [showCreateTree, setShowCreateTree] = useState(false);
-  const [showNodeForm, setShowNodeForm] = useState(false);
+  const [showNodeModal, setShowNodeModal] = useState(false);
   const [editNode, setEditNode] = useState<SkillNodeType | undefined>(undefined);
+  const [parentNode, setParentNode] = useState<SkillNodeType | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
   const [assignedUsers, setAssignedUsers] = useState<User[]>([]);
   const [userProgress, setUserProgress] = useState<UserProgress[]>([]);
@@ -100,7 +101,21 @@ const ManageTrees: React.FC = () => {
 
   const handleEditNode = (node: SkillNodeType) => {
     setEditNode(node);
-    setShowNodeForm(true);
+    setParentNode(undefined);
+    setShowNodeModal(true);
+  };
+
+  const handleAddNode = (parent?: SkillNodeType) => {
+    setEditNode(undefined);
+    setParentNode(parent);
+    setShowNodeModal(true);
+  };
+
+  const handleNodeSaved = (savedNode: SkillNodeType) => {
+    // Refresh the tree data
+    fetchTrees();
+    setSuccess(editNode ? 'Node updated successfully' : 'Node created successfully');
+    setTimeout(() => setSuccess(null), 3000);
   };
 
   const handleDeleteTree = async (treeId: string) => {
@@ -286,10 +301,7 @@ const ManageTrees: React.FC = () => {
                     <div className="flex justify-between items-center mb-6">
                       <h3 className="text-xl font-semibold text-gray-900">Tree Structure</h3>
                       <button
-                        onClick={() => {
-                          setEditNode(undefined);
-                          setShowNodeForm(true);
-                        }}
+                        onClick={() => handleAddNode()}
                         className="flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
                       >
                         <Plus className="h-4 w-4 mr-2" />
@@ -396,7 +408,7 @@ const ManageTrees: React.FC = () => {
         </div>
       </div>
       
-      {/* Forms */}
+      {/* Modals */}
       {showCreateTree && (
         <CreateTreeForm 
           onClose={() => setShowCreateTree(false)} 
@@ -404,15 +416,19 @@ const ManageTrees: React.FC = () => {
         />
       )}
       
-      {showNodeForm && selectedTreeId && (
-        <SkillNodeForm 
-          treeId={selectedTreeId} 
-          node={editNode}
+      {showNodeModal && selectedTreeId && (
+        <NodeModal
+          isOpen={showNodeModal}
           onClose={() => {
-            setShowNodeForm(false);
+            setShowNodeModal(false);
             setEditNode(undefined);
+            setParentNode(undefined);
           }}
-          isEdit={!!editNode}
+          onSave={handleNodeSaved}
+          node={editNode}
+          treeId={selectedTreeId}
+          parentNode={parentNode}
+          trees={trees}
         />
       )}
 
