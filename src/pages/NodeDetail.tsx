@@ -186,17 +186,45 @@ const NodeDetail: React.FC = () => {
     
     setLoadingComments(true);
     try {
-      const { data, error } = await supabase
+      // First get the comments
+      const { data: commentsData, error: commentsError } = await supabase
         .from('node_comments')
-        .select(`
-          *,
-          user:users(*)
-        `)
+        .select('*')
         .eq('node_id', nodeId)
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
-      setComments(data || []);
+      if (commentsError) throw commentsError;
+
+      // Then get the user details for each comment
+      const commentsWithUsers = await Promise.all(
+        (commentsData || []).map(async (comment) => {
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', comment.user_id)
+            .single();
+
+          if (userError) {
+            console.warn('Could not load user data for comment:', comment.id);
+            return {
+              ...comment,
+              user: {
+                id: comment.user_id,
+                email: 'Unknown User',
+                first_name: 'Unknown',
+                last_name: 'User'
+              }
+            };
+          }
+
+          return {
+            ...comment,
+            user: userData
+          };
+        })
+      );
+
+      setComments(commentsWithUsers);
     } catch (err) {
       console.error('Error loading comments:', err);
     } finally {
@@ -215,14 +243,29 @@ const NodeDetail: React.FC = () => {
           user_id: user.id,
           content
         })
-        .select(`
-          *,
-          user:users(*)
-        `)
+        .select('*')
         .single();
 
       if (error) throw error;
-      setComments(prev => [...prev, data]);
+
+      // Get the user data for the new comment
+      const { data: userData } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      const commentWithUser = {
+        ...data,
+        user: userData || {
+          id: user.id,
+          email: user.email,
+          first_name: user.first_name || 'Unknown',
+          last_name: user.last_name || 'User'
+        }
+      };
+
+      setComments(prev => [...prev, commentWithUser]);
     } catch (err) {
       console.error('Error adding comment:', err);
       setError('Failed to add comment');
