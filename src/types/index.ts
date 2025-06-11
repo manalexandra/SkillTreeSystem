@@ -35,6 +35,16 @@ export interface SkillNode {
   title: string;
   description: string;
   descriptionHtml?: string;
+  contentHtml?: string;
+  contentJson?: any;
+  seoTitle?: string;
+  seoDescription?: string;
+  keywords?: string[];
+  status?: 'draft' | 'published' | 'archived';
+  visibility?: 'public' | 'private' | 'team';
+  version?: number;
+  lastModifiedBy?: string;
+  lastModifiedAt?: string;
   orderIndex: number;
   createdAt: string;
   children?: SkillNode[];
@@ -94,4 +104,62 @@ export interface UserStats {
   studyTime: number;
   streak: number;
   level: number;
+}
+
+// Rich text editor types
+export interface NodeContent {
+  id: string;
+  nodeId: string;
+  contentHtml: string;
+  contentJson?: any;
+  contentText?: string;
+  version: number;
+  createdBy: string;
+  createdAt: string;
+  isCurrent: boolean;
+}
+
+export interface NodeMetadata {
+  seoTitle?: string;
+  seoDescription?: string;
+  keywords?: string[];
+  status: 'draft' | 'published' | 'archived';
+  visibility: 'public' | 'private' | 'team';
+  version: number;
+  lastModifiedBy?: string;
+  lastModifiedAt?: string;
+}
+
+export interface NodeTag {
+  id: string;
+  nodeId: string;
+  tag: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface NodeLink {
+  id: string;
+  nodeId: string;
+  title: string;
+  url: string;
+  description?: string;
+  linkType: 'internal' | 'external';
+  orderIndex: number;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface NodeImage {
+  id: string;
+  nodeId: string;
+  filename: string;
+  originalName: string;
+  fileSize: number;
+  mimeType: string;
+  storagePath: string;
+  altText?: string;
+  caption?: string;
+  uploadedBy: string;
+  uploadedAt: string;
 }
