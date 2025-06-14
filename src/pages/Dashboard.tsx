@@ -19,7 +19,7 @@ import {
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const { trees, fetchTrees, nodes, userProgress, completedTreeCount, fetchCompletedTreeCount } = useSkillTreeStore();
+  const { trees, fetchTrees, nodes, userProgress, completedTreeCount, fetchCompletedTreeCount, inProgressTrees, fetchInProgressTrees } = useSkillTreeStore();
   const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
   const navigate = useNavigate();
   const [showContent, setShowContent] = useState(false);
@@ -36,10 +36,11 @@ const Dashboard: React.FC = () => {
     if (user) {
       fetchTrees(user);
       fetchCompletedTreeCount(user.id);
+      fetchInProgressTrees(user.id);
       // Trigger animation after component mounts
       setTimeout(() => setShowContent(true), 100);
     }
-  }, [fetchTrees, fetchCompletedTreeCount, user]);
+  }, [fetchTrees, fetchCompletedTreeCount, fetchInProgressTrees, user]);
 
   // Set first tree as selected by default
   useEffect(() => {
@@ -108,7 +109,7 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Progress Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {/* Skills Mastered */}
           <div className={`bg-white rounded-xl shadow-sm border border-gray-100 p-6 transition-all duration-500 transform ${
             showContent ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
@@ -140,7 +141,7 @@ const Dashboard: React.FC = () => {
               </span>
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-1">
-              {getSkillsInProgress()}
+              {inProgressTrees.length}
             </h3>
             <p className="text-gray-600">Skills in Progress</p>
           </div>
@@ -163,23 +164,7 @@ const Dashboard: React.FC = () => {
             <p className="text-gray-600">Learning Paths</p>
           </div>
 
-          {/* Study Time */}
-          <div className={`bg-white rounded-xl shadow-sm border border-gray-100 p-6 transition-all duration-500 transform ${
-            showContent ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
-          }`} style={{ transitionDelay: '400ms' }}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-accent-100 p-3 rounded-lg">
-                <Clock className="h-6 w-6 text-accent-600" />
-              </div>
-              <span className="text-sm font-medium text-accent-600 bg-accent-50 px-3 py-1 rounded-full">
-                Time
-              </span>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-1">
-              {getTotalCompletedSkills() * 2}h
-            </h3>
-            <p className="text-gray-600">Study Time</p>
-          </div>
+
         </div>
 
         {/* Next Up Section */}

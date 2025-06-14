@@ -30,6 +30,50 @@ export const updateTreeUsers = async (
   }
 };
 
+// Fetch in-progress skill trees for a user (assigned but not completed)
+export const getInProgressSkillTrees = async (userId: string): Promise<SkillTree[]> => {
+  // 1. Get all assigned tree IDs
+  const { data: assignedData, error: assignedError } = await supabase
+    .from('user_skill_trees')
+    .select('tree_id')
+    .eq('user_id', userId);
+
+  if (assignedError) {
+    console.error('Error fetching assigned trees:', assignedError);
+    return [];
+  }
+  const assignedTreeIds = (assignedData || []).map((row: any) => row.tree_id);
+  if (!assignedTreeIds.length) return [];
+
+  // 2. Get completed tree IDs
+  const { data: completedData, error: completedError } = await supabase
+    .from('completed_trees')
+    .select('tree_id')
+    .eq('user_id', userId);
+  if (completedError) {
+    console.error('Error fetching completed trees:', completedError);
+    return [];
+  }
+  const completedTreeIds = (completedData || []).map((row: any) => row.tree_id);
+
+  // 3. Filter out completed trees
+  const inProgressTreeIds = assignedTreeIds.filter(
+    (id: string) => !completedTreeIds.includes(id)
+  );
+  if (!inProgressTreeIds.length) return [];
+
+  // 4. Fetch tree details
+  const { data: trees, error: treesError } = await supabase
+    .from('skill_trees')
+    .select('*')
+    .in('id', inProgressTreeIds);
+  if (treesError) {
+    console.error('Error fetching in-progress tree details:', treesError);
+    return [];
+  }
+  return trees as SkillTree[];
+};
+
 // Fetch the number of completed trees for a user
 export const getCompletedTreeCount = async (userId: string): Promise<number> => {
   const { count, error } = await supabase

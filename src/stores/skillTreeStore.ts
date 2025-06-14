@@ -10,6 +10,7 @@ import {
   updateSkillNode,
   deleteSkillNode,
   updateUserProgress,
+  getInProgressSkillTrees,
   supabase
 } from '../services/supabase';
 import type { SkillTree, SkillNode } from '../types';
@@ -28,6 +29,7 @@ interface SkillTreeState {
   nodes: SkillNode[];
   nodeMap: Record<string, SkillNode>;
   userProgress: Record<string, number>;
+  inProgressTrees: SkillTree[]; // <-- New state
   loading: boolean;
   error: string | null;
 
@@ -38,6 +40,7 @@ interface SkillTreeState {
   // Actions
   fetchTrees: (user: { id: string; role: string } | null) => Promise<void>;
   fetchTreeData: (treeId: string, userId: string) => Promise<void>;
+  fetchInProgressTrees: (userId: string) => Promise<void>; // <-- New action
   createNewTree: (data: CreateTreeData) => Promise<SkillTree | null>;
   updateTree: (tree: SkillTree) => Promise<void>;
   deleteTree: (treeId: string) => Promise<void>;
@@ -57,6 +60,7 @@ export const useSkillTreeStore = create<SkillTreeState>((set, get) => ({
   nodes: [],
   nodeMap: {},
   userProgress: {},
+  inProgressTrees: [], // <-- New state
   loading: false,
   error: null,
   completedTreeCount: 0,
@@ -298,6 +302,18 @@ export const useSkillTreeStore = create<SkillTreeState>((set, get) => ({
       });
       console.error(error);
       return false;
+    }
+  },
+
+  // Fetch in-progress trees for a user
+  fetchInProgressTrees: async (userId: string) => {
+    set({ loading: true, error: null });
+    try {
+      const trees = await getInProgressSkillTrees(userId);
+      set({ inProgressTrees: trees, loading: false });
+    } catch (error) {
+      set({ error: 'Failed to fetch in-progress trees', loading: false });
+      console.error(error);
     }
   },
   
