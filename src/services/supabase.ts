@@ -7,6 +7,29 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// Update assigned users for a tree
+export const updateTreeUsers = async (
+  treeId: string,
+  userIds: string[],
+  assignedBy: string
+): Promise<void> => {
+  // Remove all current assignments for this tree
+  await supabase
+    .from('user_skill_trees')
+    .delete()
+    .eq('tree_id', treeId);
+
+  // Insert new assignments
+  if (userIds.length > 0) {
+    const inserts = userIds.map(userId => ({
+      user_id: userId,
+      tree_id: treeId,
+      assigned_by: assignedBy,
+    }));
+    await supabase.from('user_skill_trees').insert(inserts);
+  }
+};
+
 // Fetch the number of completed trees for a user
 export const getCompletedTreeCount = async (userId: string): Promise<number> => {
   const { count, error } = await supabase

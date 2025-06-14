@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSkillTreeStore } from '../stores/skillTreeStore';
+import { updateTreeUsers } from '../services/supabase';
 import Navbar from '../components/layout/Navbar';
 import SkillTreeView from '../components/skill-tree/SkillTreeView';
 import NodeModal from '../components/skill-tree/NodeModal';
@@ -131,9 +132,12 @@ const ManageTrees: React.FC = () => {
     }
   };
 
-  const handleUpdateTree = async (tree: SkillTree) => {
+  const handleUpdateTree = async (tree: SkillTree, selectedUsers: string[]) => {
     try {
       await updateTree(tree);
+      if (tree.id && selectedUsers && user) {
+        await updateTreeUsers(tree.id, selectedUsers, user.id);
+      }
       setEditingTree(null);
       setSuccess('Tree updated successfully');
       setTimeout(() => setSuccess(null), 3000);
