@@ -97,7 +97,7 @@ export interface NodeComment {
 
 export interface UserStats {
   totalSkills: number;
-  completedSkills: number;
+  completedTrees: number;
   inProgressSkills: number;
   completionRate: number;
   totalBadges: number;

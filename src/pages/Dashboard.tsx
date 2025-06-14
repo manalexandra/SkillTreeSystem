@@ -63,15 +63,14 @@ const Dashboard: React.FC = () => {
     return Math.round((totalScore / maxScore) * 100);
   };
 
-  // Get total completed skills across all trees
-  const getTotalCompletedSkills = () => {
-    return nodes.filter(node => node.completed).length;
-  };
+  // Get total completed trees across all trees (from store)
+  // Use completedTreeCount from the store
 
   // Get total skills in progress (started but not completed)
   const getSkillsInProgress = () => {
     return nodes.filter(node => node.progress && node.progress > 0 && !node.completed).length;
   };
+  // If you display completed skills in the UI, update to use completedTreeCount and label as Completed Trees.
 
   // Get the next recommended skill
   const getNextSkill = () => {

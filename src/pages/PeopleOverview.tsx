@@ -4,7 +4,7 @@ import Navbar from '../components/layout/Navbar';
 import UserAvatar from '../components/common/UserAvatar';
 import { useAuth } from '../context/AuthContext';
 import { fetchAllUsers, getTeamMembers, getCompletedTrees } from '../services/userService';
-import { getAllUserProgress, supabase } from '../services/supabase';
+import { getAllUserProgress, supabase, getSkillTrees } from '../services/supabase';
 import { User, Team, CompletedTree, SkillType } from '../types';
 import SkillBadge from '../components/skill-tree/SkillBadge';
 import { 
@@ -30,6 +30,7 @@ const PeopleOverview: React.FC = () => {
   const [selectedBadge, setSelectedBadge] = useState<string>('all');
   const [userProgress, setUserProgress] = useState<Record<string, Record<string, boolean>>>({});
   const [userBadges, setUserBadges] = useState<Record<string, CompletedTree[]>>({});
+  const [userAssignedTrees, setUserAssignedTrees] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [skillTypes, setSkillTypes] = useState<SkillType[]>([]);
@@ -68,21 +69,25 @@ const PeopleOverview: React.FC = () => {
         }
         setTeamMembers(membersMap);
 
-        // Load progress and badges for each user
+        // Load progress, badges, and assigned trees for each user
         const progressMap: Record<string, Record<string, boolean>> = {};
         const badgesMap: Record<string, CompletedTree[]> = {};
+        const assignedTreesMap: Record<string, any[]> = {};
         
         for (const user of allUsers) {
-          const [progress, badges] = await Promise.all([
+          const [progress, badges, assignedTrees] = await Promise.all([
             getAllUserProgress(user.id),
-            getCompletedTrees(user.id)
+            getCompletedTrees(user.id),
+            getSkillTrees(user.id)
           ]);
           progressMap[user.id] = progress;
           badgesMap[user.id] = badges;
+          assignedTreesMap[user.id] = assignedTrees;
         }
         
         setUserProgress(progressMap);
         setUserBadges(badgesMap);
+        setUserAssignedTrees(assignedTreesMap);
 
       } catch (error) {
         console.error('Error loading data:', error);
@@ -95,19 +100,23 @@ const PeopleOverview: React.FC = () => {
   }, []);
 
   const calculateUserStats = (userId: string) => {
-    const progress = userProgress[userId] || {};
-    const totalSkills = Object.keys(progress).length;
-    const completedSkills = Object.values(progress).filter(Boolean).length;
-    const completionRate = totalSkills > 0 
-      ? Math.round((completedSkills / totalSkills) * 100) 
+    const completedTreesArr = userBadges[userId] || [];
+    const completedTrees = completedTreesArr.length;
+    const assignedTrees = userAssignedTrees[userId] || [];
+    const completedTreeIds = new Set(completedTreesArr.map(tree => tree.treeId));
+    const inProgressTrees = assignedTrees.filter(tree => !completedTreeIds.has(tree.id)).length;
+    const completionRate = assignedTrees.length > 0 
+      ? Math.round((completedTrees / assignedTrees.length) * 100) 
       : 0;
 
     return {
-      totalSkills,
-      completedSkills,
+      totalAssignedTrees: assignedTrees.length,
+      completedTrees,
+      inProgressTrees,
       completionRate
     };
   };
+
 
   const getActiveFiltersCount = () => {
     let count = 0;
@@ -321,15 +330,15 @@ const PeopleOverview: React.FC = () => {
                   <div className="grid grid-cols-3 gap-4 pt-2">
                     <div className="text-center">
                       <div className="text-2xl font-bold text-gray-900">
-                        {stats.completedSkills}
+                        {stats.completedTrees}
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        Completed
+                        Completed Trees
                       </div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-gray-900">
-                        {stats.totalSkills - stats.completedSkills}
+                        {stats.inProgressTrees}
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
                         In Progress
@@ -337,7 +346,7 @@ const PeopleOverview: React.FC = () => {
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-gray-900">
-                        {stats.totalSkills}
+                        {stats.totalAssignedTrees}
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
                         Total Skills
