@@ -3,6 +3,7 @@ import {
   getSkillTrees, 
   getSkillNodes, 
   getUserProgress, 
+  getUserNodeScores,
   createSkillTree,
   createSkillNode,
   updateSkillNode,
@@ -25,7 +26,7 @@ interface SkillTreeState {
   currentTree: SkillTree | null;
   nodes: SkillNode[];
   nodeMap: Record<string, SkillNode>;
-  userProgress: Record<string, boolean>;
+  userProgress: Record<string, number>;
   loading: boolean;
   error: string | null;
   
@@ -93,8 +94,8 @@ export const useSkillTreeStore = create<SkillTreeState>((set, get) => ({
         nodeMap[node.id] = node;
       });
       
-      // Get user progress
-      const progress = await getUserProgress(userId, treeId);
+      // Get user progress (score per node)
+      const progress = await getUserNodeScores(userId, treeId);
       
       set({ 
         nodes, 

@@ -274,6 +274,25 @@ export const deleteSkillNode = async (nodeId: string): Promise<boolean> => {
 };
 
 // User Progress functions
+export const getUserNodeScores = async (userId: string, treeId: string): Promise<Record<string, number>> => {
+  // Fetch all scores for this user
+  const { data, error } = await supabase
+    .from('node_progress')
+    .select('node_id, score')
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error fetching node scores:', error);
+    return {};
+  }
+
+  // Optionally, filter to only nodes in this tree if needed
+  const scores: Record<string, number> = {};
+  for (const row of data) {
+    scores[row.node_id] = row.score ?? 0;
+  }
+  return scores;
+};
 export const updateUserProgress = async (
   userId: string,
   nodeId: string,
