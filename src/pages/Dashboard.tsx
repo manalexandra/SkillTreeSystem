@@ -19,7 +19,7 @@ import {
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const { trees, fetchTrees, nodes } = useSkillTreeStore();
+  const { trees, fetchTrees, nodes, userProgress } = useSkillTreeStore();
   const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
   const navigate = useNavigate();
   const [showContent, setShowContent] = useState(false);
@@ -48,11 +48,17 @@ const Dashboard: React.FC = () => {
   }, [trees, selectedTreeId]);
 
   // Calculate completion percentage for a tree
+  // Calculate completion percentage for a tree using node progress (score 0-10)
   const calculateTreeCompletion = (treeId: string) => {
     const treeNodes = nodes.filter(node => node.treeId === treeId);
     if (!treeNodes.length) return 0;
-    const completedNodes = treeNodes.filter(node => node.completed).length;
-    return Math.round((completedNodes / treeNodes.length) * 100);
+    // Use userProgress mapping: node.id -> score (0-10)
+    const totalScore = treeNodes.reduce((sum, node) => {
+      const score = typeof userProgress[node.id] === 'number' ? userProgress[node.id] : 0;
+      return sum + score;
+    }, 0);
+    const maxScore = treeNodes.length * 10;
+    return Math.round((totalScore / maxScore) * 100);
   };
 
   // Get total completed skills across all trees
