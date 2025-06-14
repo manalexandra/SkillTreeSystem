@@ -445,7 +445,7 @@ const RoadmapView: React.FC = () => {
         </div>
       )}
       
-      <style jsx>{`
+      <style>{`
         .scrollbar-thin::-webkit-scrollbar {
           height: 8px;
         }
