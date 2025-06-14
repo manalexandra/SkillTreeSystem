@@ -19,7 +19,7 @@ import {
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const { trees, fetchTrees, nodes, userProgress } = useSkillTreeStore();
+  const { trees, fetchTrees, nodes, userProgress, completedTreeCount, fetchCompletedTreeCount } = useSkillTreeStore();
   const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
   const navigate = useNavigate();
   const [showContent, setShowContent] = useState(false);
@@ -31,14 +31,15 @@ const Dashboard: React.FC = () => {
     }
   }, [user, navigate]);
   
-  // Fetch trees on mount
+  // Fetch trees and completed tree count on mount
   useEffect(() => {
     if (user) {
-      fetchTrees();
+      fetchTrees(user);
+      fetchCompletedTreeCount(user.id);
       // Trigger animation after component mounts
       setTimeout(() => setShowContent(true), 100);
     }
-  }, [fetchTrees, user]);
+  }, [fetchTrees, fetchCompletedTreeCount, user]);
 
   // Set first tree as selected by default
   useEffect(() => {
@@ -121,7 +122,7 @@ const Dashboard: React.FC = () => {
               </span>
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-1">
-              {getTotalCompletedSkills()}
+              {completedTreeCount}
             </h3>
             <p className="text-gray-600">Skills Mastered</p>
           </div>

@@ -3,6 +3,7 @@ import {
   getSkillTrees, 
   getSkillNodes, 
   getUserProgress, 
+  getCompletedTreeCount,
   getUserNodeScores,
   createSkillTree,
   createSkillNode,
@@ -29,9 +30,13 @@ interface SkillTreeState {
   userProgress: Record<string, number>;
   loading: boolean;
   error: string | null;
+
+  // Skill mastered
+  completedTreeCount: number;
+  fetchCompletedTreeCount: (userId: string) => Promise<void>;
   
   // Actions
-  fetchTrees: () => Promise<void>;
+  fetchTrees: (user: { id: string; role: string } | null) => Promise<void>;
   fetchTreeData: (treeId: string, userId: string) => Promise<void>;
   createNewTree: (data: CreateTreeData) => Promise<SkillTree | null>;
   updateTree: (tree: SkillTree) => Promise<void>;
@@ -54,11 +59,30 @@ export const useSkillTreeStore = create<SkillTreeState>((set, get) => ({
   userProgress: {},
   loading: false,
   error: null,
+  completedTreeCount: 0,
   
-  fetchTrees: async () => {
+  fetchCompletedTreeCount: async (userId) => {
     set({ loading: true, error: null });
     try {
-      const trees = await getSkillTrees();
+      const count = await getCompletedTreeCount(userId);
+      set({ completedTreeCount: count, loading: false });
+    } catch (error) {
+      set({ error: 'Failed to fetch completed tree count', loading: false });
+      console.error(error);
+    }
+  },
+
+  fetchTrees: async (user) => {
+    set({ loading: true, error: null });
+    try {
+      let trees;
+      if (user && user.role === 'manager') {
+        trees = await getSkillTrees(); // admin: all trees
+      } else if (user) {
+        trees = await getSkillTrees(user.id); // regular: assigned trees
+      } else {
+        trees = [];
+      }
       set({ trees, loading: false });
     } catch (error) {
       set({ 

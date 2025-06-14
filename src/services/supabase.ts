@@ -7,6 +7,19 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// Fetch the number of completed trees for a user
+export const getCompletedTreeCount = async (userId: string): Promise<number> => {
+  const { count, error } = await supabase
+    .from('completed_trees')
+    .select('tree_id', { count: 'exact', head: true })
+    .eq('user_id', userId);
+  if (error) {
+    console.error('Error fetching completed tree count:', error);
+    return 0;
+  }
+  return count || 0;
+};
+
 // Auth functions
 export const signUp = async (email: string, password: string, role: 'manager' | 'user' = 'user') => {
   const { data, error } = await supabase.auth.signUp({
