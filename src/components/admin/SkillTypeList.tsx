@@ -56,9 +56,6 @@ const SkillTypeList: React.FC<SkillTypeListProps> = ({
                 {skillType.description && (
                   <p className="mt-1 text-gray-500">{skillType.description}</p>
                 )}
-                <p className="text-sm text-gray-400 mt-2">
-                  Created {new Date(skillType.createdAt).toLocaleDateString()}
-                </p>
               </div>
               <div className="flex items-center space-x-2">
                 <button
