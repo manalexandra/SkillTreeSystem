@@ -44,12 +44,12 @@ const ManageTrees: React.FC = () => {
     }
   }, [authLoading, user, navigate]);
 
-  // Fetch trees on mount
+  // Fetch trees every time page is visited or user changes
   useEffect(() => {
-    if (user && user.role === 'manager') {
-      fetchTrees();
+    if (user) {
+      fetchTrees(user);
     }
-  }, [fetchTrees, user]);
+  }, [user, fetchTrees]);
 
   // Set first tree as selected by default
   useEffect(() => {
