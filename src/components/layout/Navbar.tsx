@@ -27,7 +27,8 @@ const Navbar: React.FC = () => {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/login');
+    sessionStorage.clear();
+    window.location.href = '/login';
   };
 
   const getProfileImage = () => {
