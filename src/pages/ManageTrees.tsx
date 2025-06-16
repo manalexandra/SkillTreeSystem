@@ -21,7 +21,7 @@ interface UserProgress {
 
 const ManageTrees: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
-  const { trees, nodes, fetchTrees, deleteTree, updateTree } = useSkillTreeStore();
+  const { trees, nodes, fetchTrees, deleteTree, updateTree, fetchTreeData } = useSkillTreeStore();
   const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
   const [showCreateTree, setShowCreateTree] = useState(false);
   const [showNodeModal, setShowNodeModal] = useState(false);
@@ -50,6 +50,13 @@ const ManageTrees: React.FC = () => {
       fetchTrees(user);
     }
   }, [user, fetchTrees]);
+
+  // Fetch nodes for selected tree
+  useEffect(() => {
+    if (user && selectedTreeId) {
+      fetchTreeData(selectedTreeId, user.id);
+    }
+  }, [user, selectedTreeId, fetchTreeData]);
 
   // Set first tree as selected by default
   useEffect(() => {
