@@ -31,7 +31,7 @@ interface TreeNode {
 }
 
 const RoadmapView: React.FC = () => {
-  const { trees } = useSkillTreeStore();
+  const { trees, fetchTrees } = useSkillTreeStore();
   const { user } = useAuth();
   const [expandedTreeIds, setExpandedTreeIds] = useState<string[]>([]);
   const [activeTreeId, setActiveTreeId] = useState<string | null>(null);
@@ -50,6 +50,13 @@ const RoadmapView: React.FC = () => {
     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
   
+  // Fetch trees on every mount or when user changes
+  useEffect(() => {
+    if (user) {
+      fetchTrees(user);
+    }
+  }, [user, fetchTrees]);
+
   useEffect(() => {
     if (sortedTrees.length > 0 && expandedTreeIds.length === 0) {
       setExpandedTreeIds([sortedTrees[0].id]);
