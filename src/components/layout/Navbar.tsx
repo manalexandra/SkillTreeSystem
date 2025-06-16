@@ -99,7 +99,7 @@ const Navbar: React.FC = () => {
           {/* User menu (desktop) */}
           <div className="hidden sm:ml-6 sm:flex sm:items-center">
             {user ? (
-              <div className="ml-3 relative\" ref={profileRef}>
+              <div className="ml-3 relative" ref={profileRef}>
                 <div>
                   <button
                     onClick={() => setIsProfileOpen(!isProfileOpen)}
@@ -127,7 +127,7 @@ const Navbar: React.FC = () => {
 
                 {isProfileOpen && (
                   <div
-                    className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none"
+                    className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 z-50 focus:outline-none"
                     role="menu"
                     aria-orientation="vertical"
                     aria-labelledby="user-menu"
