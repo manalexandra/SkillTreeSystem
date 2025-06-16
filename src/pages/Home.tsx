@@ -40,6 +40,7 @@ const Home: React.FC = () => {
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Link
                     to="/register"
+                    
                   className="inline-flex items-center px-8 py-4 text-lg bg-white text-primary-700 font-medium rounded-full border-2 border-white/30 hover:border-white/50 backdrop-blur-sm transition-all duration-200"
                   >
                     Get Started Free
