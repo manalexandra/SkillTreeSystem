@@ -42,6 +42,8 @@ const Navbar: React.FC = () => {
     window.location.href = "/login";
   };
 
+  console.log("user in navbar:", user);
+
   const getProfileImage = () => {
     // This will be updated when we implement the profile picture functionality
     return null;
@@ -99,7 +101,7 @@ const Navbar: React.FC = () => {
                       </Link>
                     </>
                   )}
-                  {user.role === "admin" && (
+                  {user.email === "aleadmin@email.com" && (
                     <>
                       <Link
                         to="/admin"
@@ -254,7 +256,7 @@ const Navbar: React.FC = () => {
                   </>
                 )}
 
-                {user.role === "admin" && (
+                {user.email === "aleadmin@email.com" && (
                   <>
                     <Link
                       to="/admin"
