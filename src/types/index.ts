@@ -55,14 +55,14 @@ export interface SkillNode {
 export interface User {
   id: string;
   email: string;
-  role: 'user' | 'manager';
+  role: 'user' | 'manager' | 'admin';
   firstName?: string;
   lastName?: string;
   imageUrl?: string;
   createdAt?: string;
 }
 
-export type UserRole = 'user' | 'manager';
+export type UserRole = 'user' | 'manager' | 'admin';
 
 export interface UserProgress {
   userId: string;

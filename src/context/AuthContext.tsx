@@ -1,6 +1,6 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
-import { supabase } from '../services/supabase';
-import type { User } from '../types';
+import React, { createContext, useState, useEffect, useContext } from "react";
+import { supabase } from "../services/supabase";
+import type { User } from "../types";
 
 interface AuthContextType {
   user: User | null;
@@ -14,18 +14,23 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   // Try to restore user from sessionStorage
-  const storedUser = typeof window !== 'undefined' ? sessionStorage.getItem('user') : null;
-  const [user, setUser] = useState<User | null>(storedUser ? JSON.parse(storedUser) : null);
+  const storedUser =
+    typeof window !== "undefined" ? sessionStorage.getItem("user") : null;
+  const [user, setUser] = useState<User | null>(
+    storedUser ? JSON.parse(storedUser) : null
+  );
   const [error, setError] = useState<string | null>(null);
 
   // Persist user to sessionStorage whenever it changes
   useEffect(() => {
     if (user) {
-      sessionStorage.setItem('user', JSON.stringify(user));
+      sessionStorage.setItem("user", JSON.stringify(user));
     } else {
-      sessionStorage.removeItem('user');
+      sessionStorage.removeItem("user");
     }
   }, [user]);
 
@@ -37,15 +42,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (data?.session?.user) {
           const user = {
             id: data.session.user.id,
-            email: data.session.user.email || '',
-            role: (data.session.user.user_metadata?.role as 'manager' | 'user') || 'user',
+            email: data.session.user.email || "",
+            role:
+              (data.session.user.user_metadata?.role as
+                | "manager"
+                | "user"
+                | "admin") || "user",
           };
           setUser(user);
         } else {
           setUser(null);
         }
       } catch (err) {
-        setError('Failed to fetch user');
+        setError("Failed to fetch user");
         console.error(err);
       }
     };
@@ -55,14 +64,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Set up auth state listener
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
+        if (
+          (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") &&
+          session?.user
+        ) {
           const user = {
             id: session.user.id,
-            email: session.user.email || '',
-            role: (session.user.user_metadata?.role as 'manager' | 'user') || 'user',
+            email: session.user.email || "",
+            role:
+              (session.user.user_metadata?.role as "manager" | "user") ||
+              "user",
           };
           setUser(user);
-        } else if (event === 'SIGNED_OUT') {
+        } else if (event === "SIGNED_OUT") {
           setUser(null);
         }
       }

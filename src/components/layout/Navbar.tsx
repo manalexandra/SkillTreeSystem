@@ -1,8 +1,16 @@
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { signOut } from '../../services/supabase';
-import { Menu, X, GitBranchPlus, LogOut, User, ChevronDown, Users, Settings } from 'lucide-react';
+import React from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import { signOut } from "../../services/supabase";
+import {
+  Menu,
+  X,
+  GitBranchPlus,
+  LogOut,
+  User,
+  ChevronDown,
+  Users,
+} from "lucide-react";
 
 const Navbar: React.FC = () => {
   const { user } = useAuth();
@@ -10,25 +18,28 @@ const Navbar: React.FC = () => {
   const [isProfileOpen, setIsProfileOpen] = React.useState(false);
   const navigate = useNavigate();
   const profileRef = React.useRef<HTMLDivElement>(null);
-  
+
   // Close profile dropdown when clicking outside
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(event.target as Node)
+      ) {
         setIsProfileOpen(false);
       }
     };
-    
-    document.addEventListener('mousedown', handleClickOutside);
+
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
   const handleSignOut = async () => {
     await signOut();
     sessionStorage.clear();
-    window.location.href = '/login';
+    window.location.href = "/login";
   };
 
   const getProfileImage = () => {
@@ -37,7 +48,7 @@ const Navbar: React.FC = () => {
   };
 
   const getInitials = () => {
-    if (!user?.email) return 'U';
+    if (!user?.email) return "U";
     return user.email.charAt(0).toUpperCase();
   };
 
@@ -49,10 +60,12 @@ const Navbar: React.FC = () => {
             <div className="flex-shrink-0 flex items-center">
               <Link to="/" className="flex items-center">
                 <GitBranchPlus className="h-8 w-8 text-primary-600" />
-                <span className="ml-2 text-xl font-bold text-gray-800">SkillTree</span>
+                <span className="ml-2 text-xl font-bold text-gray-800">
+                  SkillTree
+                </span>
               </Link>
             </div>
-            
+
             {/* Desktop navigation */}
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               {user && (
@@ -76,7 +89,7 @@ const Navbar: React.FC = () => {
                     <Users className="h-4 w-4 mr-1" />
                     People
                   </Link>
-                  {user.role === 'manager' && (
+                  {user.role === "manager" && (
                     <>
                       <Link
                         to="/manage"
@@ -84,6 +97,10 @@ const Navbar: React.FC = () => {
                       >
                         Manage Trees
                       </Link>
+                    </>
+                  )}
+                  {user.role === "admin" && (
+                    <>
                       <Link
                         to="/admin"
                         className="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -96,7 +113,7 @@ const Navbar: React.FC = () => {
               )}
             </div>
           </div>
-          
+
           {/* User menu (desktop) */}
           <div className="hidden sm:ml-6 sm:flex sm:items-center">
             {user ? (
@@ -177,7 +194,7 @@ const Navbar: React.FC = () => {
               </div>
             )}
           </div>
-          
+
           {/* Mobile menu button */}
           <div className="flex items-center sm:hidden">
             <button
@@ -225,7 +242,7 @@ const Navbar: React.FC = () => {
                     People
                   </div>
                 </Link>
-                {user.role === 'manager' && (
+                {user.role === "manager" && (
                   <>
                     <Link
                       to="/manage"
@@ -234,6 +251,11 @@ const Navbar: React.FC = () => {
                     >
                       Manage Trees
                     </Link>
+                  </>
+                )}
+
+                {user.role === "admin" && (
+                  <>
                     <Link
                       to="/admin"
                       className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
